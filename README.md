@@ -5,6 +5,8 @@
 > **Public alpha.** The full seven-page chain is usable, but factory presets
 > and final tuning are planned after feedback. Expect parameter/preset changes;
 > use it on copies of important sessions.
+>
+> [Download v0.9.0-alpha.1](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.1)
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
