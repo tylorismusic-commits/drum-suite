@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 #include "dsp/controls.hpp"
 
@@ -69,6 +70,7 @@ enum ParamId : uint32_t {
   P_LIMIT_TRUEPEAK,
   P_LIMIT_MIX,
   P_SAMPLE_SENSITIVITY,
+  P_SAMPLE_OFFSET,
   P_COUNT
 };
 
@@ -87,75 +89,26 @@ struct SuggestedRange {
   double hi = -1.0;  // hi <= lo means no suggested range
 };
 
-inline SuggestedRange recommendedRange(uint32_t id) noexcept {
-  switch (id) {
-    case P_INPUT:
-    case P_OUTPUT:
-      return {-6.0, 6.0};
-    case P_THRESHOLD:
-      return {-45.0, -18.0};
-    case P_DEBLEED:
-      return {40.0, 90.0};
-    case P_GHOST:
-      return {30.0, 85.0};
-    case P_SAMPLE_LEVEL:
-      return {50.0, 100.0};
-    case P_SAMPLE_DIRECT:
-      return {40.0, 100.0};
-    case P_SAMPLE_PITCH:
-      return {-7.0, 7.0};
-    case P_SAMPLE_START:
-      return {0.0, 30.0};
-    case P_SAMPLE_FADE:
-      return {1.0, 50.0};
-    case P_SAMPLE_SENSITIVITY:
-      return {0.30, 0.80};
-    case P_EQ_LOW:
-    case P_EQ_LOW_MID:
-    case P_EQ_HIGH_MID:
-    case P_EQ_HIGH:
-      return {0.42, 0.62};
-    case P_EQ_HPF:
-      return {0.0, 0.35};
-    case P_EQ_LPF:
-      return {0.55, 1.0};
-    case P_COMP_THRESHOLD:
-      return {-32.0, -12.0};
-    case P_COMP_ATTACK:
-      return {0.1, 0.6};
-    case P_COMP_RELEASE:
-      return {0.2, 0.7};
-    case P_COMP_MAKEUP:
-      return {0.45, 0.85};
-    case P_COMP_MIX:
-      return {0.50, 1.0};
-    case P_COMP_SC_HPF:
-      return {0.0, 0.50};
-    case P_DRIVE_DRIVE:
-      return {0.20, 0.65};
-    case P_DRIVE_CHARACTER:
-      return {0.30, 0.70};
-    case P_DRIVE_TONE:
-      return {0.35, 0.70};
-    case P_DRIVE_MIX:
-      return {0.10, 0.50};
-    case P_CLIP_DRIVE:
-      return {0.20, 0.60};
-    case P_CLIP_CEILING:
-      return {0.80, 0.95};
-    case P_CLIP_MIX:
-      return {0.10, 0.40};
-    case P_LIMIT_CEILING:
-      return {0.90, 1.0};
-    case P_LIMIT_RELEASE:
-      return {0.20, 0.70};
-    case P_LIMIT_LOOKAHEAD:
-      return {0.20, 0.80};
-    case P_LIMIT_MIX:
-      return {0.70, 1.0};
-    default:
-      return {};
+inline float compRatioValue(float step) noexcept {
+  static const float kRatios[9] = {1.5f, 2.0f, 3.0f, 4.0f, 6.0f,
+                                   8.0f, 12.0f, 20.0f, 20.0f};
+  return kRatios[std::clamp(static_cast<int>(std::lround(step)), 0, 8)];
+}
+
+inline float compAttackMs(int model, float value) noexcept {
+  if (model == 0) {
+    return 0.04f * std::pow(40.0f, std::round(value * 6.0f) / 6.0f);
   }
+  if (model == 2) return 0.1f * std::pow(300.0f, value);
+  return 0.0f;
+}
+
+inline float compReleaseMs(int model, float value) noexcept {
+  if (model == 0) {
+    return 50.0f * std::pow(22.0f, std::round(value * 6.0f) / 6.0f);
+  }
+  if (model == 2) return 100.0f * std::pow(12.0f, value);
+  return 0.0f;
 }
 
 struct ParamSpec {
@@ -175,7 +128,7 @@ struct ParamSpec {
 inline constexpr const char* kDrumLabels[] = {"Kick", "Snare", "Tom", "Hat",
                                               "Ride", "Room", "OH", "Bus"};
 inline constexpr const char* kSampleTriggerLabels[] = {"Gate", "Transient",
-                                                       "Always"};
+                                                       "Always", "MIDI"};
 
 
 inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
@@ -195,13 +148,13 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
 
     {"ghost_mode", "Ghost Mode", "Ghost", 0.0, 1.0, 0.0, true, false, true,
      nullptr, {}},
-    {"ghost", "Ghost", "Ghost", 0.0, 100.0, 75.0, false, false, false, "%", {}},
+    {"ghost", "Ghost", "Ghost", 0.0, 100.0, 50.0, false, false, false, "%", {}},
     {"ghost_note", "Ghost Note", "MIDI", 0.0, 127.0, 38.0, true, false, false,
      nullptr, {}},
     {"ghost_cc", "Ghost CC", "MIDI", 0.0, 127.0, 74.0, true, false, false,
      nullptr, {}},
     {"sample_on", "Sample", "Sample", 0.0, 1.0, 0.0, true, false, true, nullptr, {}},
-    {"sample_level", "Sample Level", "Sample", 0.0, 100.0, 80.0, false, false,
+    {"sample_level", "Sample Level", "Sample", 0.0, 100.0, 85.0, false, false,
      false, "%", {}},
     {"sample_direct", "Direct", "Sample", 0.0, 100.0, 100.0, false, false,
      false, "%", {}},
@@ -213,22 +166,22 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      nullptr, {}},
     {"sample_choke", "Choke", "Sample", 0.0, 1.0, 1.0, true, false, true,
      nullptr, {}},
-    {"sample_fade", "Fade", "Sample", 0.0, 500.0, 3.0, false, false, false,
+    {"sample_fade", "Fade", "Sample", 0.0, 500.0, 2.0, false, false, false,
      "ms", {}},
-    {"sample_trigger", "Trigger", "Sample", 0.0, 2.0, 0.0, true, false, false,
+    {"sample_trigger", "Trigger", "Sample", 0.0, 3.0, 0.0, true, false, false,
      nullptr, labels(kSampleTriggerLabels)},
-    {"eq_low", "Low", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
-    {"eq_low_mid", "Low Mid", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
-    {"eq_high_mid", "High Mid", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
-    {"eq_high", "High", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
-    {"eq_hpf", "HPF", "EQ", 0.0, 1.0, 0.0, false, false, false, "Hz", {}},
-    {"eq_lpf", "LPF", "EQ", 0.0, 1.0, 1.0, false, false, false, "Hz", {}},
+    {"eq_low", "Low", "EQ", 0.0, 1.0, 0.60, false, false, false, "dB", {}},
+    {"eq_low_mid", "Low Mid", "EQ", 0.0, 1.0, 0.45, false, false, false, "dB", {}},
+    {"eq_high_mid", "High Mid", "EQ", 0.0, 1.0, 0.55, false, false, false, "dB", {}},
+    {"eq_high", "High", "EQ", 0.0, 1.0, 0.57, false, false, false, "dB", {}},
+    {"eq_hpf", "HPF", "EQ", 0.0, 1.0, 0.14, false, false, false, "Hz", {}},
+    {"eq_lpf", "LPF", "EQ", 0.0, 1.0, 0.98, false, false, false, "Hz", {}},
     {"comp_on", "Comp On", "Comp", 0.0, 1.0, 1.0, true, false, true, nullptr, {}},
     {"comp_model", "Model", "Comp", 0.0, 2.0, 0.0, true, false, false, nullptr,
      labels(kCompModelLabels)},
-    {"comp_threshold", "Threshold", "Comp", -40.0, 0.0, -20.0, false, false,
+    {"comp_threshold", "Threshold", "Comp", -40.0, 0.0, -14.0, false, false,
      false, "dB", {}},
-    {"comp_ratio", "Ratio", "Comp", 0.0, 8.0, 4.0, true, false, false, nullptr, {}},
+    {"comp_ratio", "Ratio", "Comp", 0.0, 8.0, 3.0, true, false, false, nullptr, {}},
     {"comp_attack", "Attack", "Comp", 0.0, 1.0, 0.25, false, false, false, "%", {}},
     {"comp_release", "Release", "Comp", 0.0, 1.0, 0.35, false, false, false, "%", {}},
     {"comp_makeup", "Makeup", "Comp", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
@@ -262,19 +215,200 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      {}},
     {"limit_ceiling", "Ceiling", "Limit", 0.0, 1.0, 0.967, false, false, false,
      "dB", {}},
-    {"limit_release", "Release", "Limit", 0.0, 1.0, 0.5, false, false, false, "%",
+    {"limit_release", "Release", "Limit", 0.0, 1.0, 0.45, false, false, false, "%",
      {}},
-    {"limit_lookahead", "Lookahead", "Limit", 0.0, 1.0, 0.4, false, false, false,
+    {"limit_lookahead", "Lookahead", "Limit", 0.0, 1.0, 0.35, false, false, false,
      "ms", {}},
     {"limit_true_peak", "True Peak", "Limit", 0.0, 1.0, 1.0, true, false, true,
      nullptr, {}},
     {"limit_mix", "Mix", "Limit", 0.0, 1.0, 1.0, false, false, false, "%", {}},
     {"sample_sensitivity", "Sensitivity", "Sample", 0.0, 1.0, 0.5, false, false,
      false, "%", {}},
+    {"sample_offset", "Offset", "Sample", 0.0, 10.0, 0.0, false, false, false,
+     "ms", {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
               "kParamSpecs must cover every parameter id");
+
+inline double recommendedTarget(uint32_t id, int drum) noexcept {
+  drum = std::clamp(drum, 0, kDrumCount - 1);
+  const CompDefaults& c = kCompDefaults[drum];
+  const DriveDefaults& d = kDriveDefaults[drum];
+  const ClipDefaults& cl = kClipDefaults[drum];
+  const EqDefaults& eq = kEqDefaults[drum];
+  const LimitDefaults& lim = kLimitDefaults[drum];
+  const SampleDefaults& sm = kSampleDefaults[drum];
+  switch (id) {
+    case P_INPUT:
+    case P_OUTPUT:
+      return 0.0;
+    case P_THRESHOLD:
+      return kProfiles[drum].thresholdDb;
+    case P_DEBLEED:
+      return kProfiles[drum].deBleed;
+    case P_GHOST:
+      return 50.0;
+    case P_SAMPLE_LEVEL:
+      return sm.level;
+    case P_SAMPLE_DIRECT:
+      return sm.direct;
+    case P_SAMPLE_PITCH:
+      return sm.pitch;
+    case P_SAMPLE_START:
+      return sm.start;
+    case P_SAMPLE_FADE:
+      return sm.fadeMs;
+    case P_SAMPLE_SENSITIVITY:
+      return sm.sensitivity;
+    case P_SAMPLE_OFFSET:
+      return sm.offsetMs;
+    case P_EQ_LOW:
+      return eq.low;
+    case P_EQ_LOW_MID:
+      return eq.lowMid;
+    case P_EQ_HIGH_MID:
+      return eq.highMid;
+    case P_EQ_HIGH:
+      return eq.high;
+    case P_EQ_HPF:
+      return eq.hpf;
+    case P_EQ_LPF:
+      return eq.lpf;
+    case P_COMP_THRESHOLD:
+      return c.thresholdDb;
+    case P_COMP_RATIO:
+      return c.ratio;
+    case P_COMP_ATTACK:
+      return c.attack;
+    case P_COMP_RELEASE:
+      return c.release;
+    case P_COMP_MAKEUP:
+      return c.makeup;
+    case P_COMP_MIX:
+      return c.mix;
+    case P_COMP_SC_HPF:
+      return c.scHpf;
+    case P_DRIVE_DRIVE:
+      return d.drive;
+    case P_DRIVE_CHARACTER:
+      return d.character;
+    case P_DRIVE_TONE:
+      return d.tone;
+    case P_DRIVE_MIX:
+      return d.mix;
+    case P_CLIP_DRIVE:
+      return cl.drive;
+    case P_CLIP_CEILING:
+      return cl.ceiling;
+    case P_CLIP_MIX:
+      return cl.mix;
+    case P_LIMIT_CEILING:
+      return lim.ceiling;
+    case P_LIMIT_RELEASE:
+      return lim.release;
+    case P_LIMIT_LOOKAHEAD:
+      return lim.lookahead;
+    case P_LIMIT_MIX:
+      return lim.mix;
+    default:
+      return std::numeric_limits<double>::quiet_NaN();
+  }
+}
+
+inline SuggestedRange recommendedRange(uint32_t id, int drum = 0) noexcept {
+  const double target = recommendedTarget(id, drum);
+  if (!std::isfinite(target)) return {};
+  const ParamSpec& spec = kParamSpecs[id];
+  if (spec.stepped) return {};
+  double width = 0.10 * (spec.max - spec.min);
+  switch (id) {
+    case P_INPUT:
+    case P_OUTPUT:
+      width = 6.0;
+      break;
+    case P_THRESHOLD:
+      width = 6.0;
+      break;
+    case P_DEBLEED:
+      width = 15.0;
+      break;
+    case P_GHOST:
+      width = 20.0;
+      break;
+    case P_EQ_LOW:
+    case P_EQ_LOW_MID:
+    case P_EQ_HIGH_MID:
+    case P_EQ_HIGH:
+      width = 0.12;
+      break;
+    case P_EQ_HPF:
+    case P_EQ_LPF:
+      width = 0.10;
+      break;
+    case P_COMP_THRESHOLD:
+      width = 6.0;
+      break;
+    case P_COMP_RATIO:
+      width = 1.0;
+      break;
+    case P_COMP_ATTACK:
+    case P_COMP_RELEASE:
+    case P_COMP_MAKEUP:
+    case P_COMP_MIX:
+    case P_COMP_SC_HPF:
+      width = 0.12;
+      break;
+    case P_DRIVE_DRIVE:
+    case P_DRIVE_CHARACTER:
+    case P_DRIVE_TONE:
+    case P_DRIVE_MIX:
+      width = 0.12;
+      break;
+    case P_CLIP_DRIVE:
+    case P_CLIP_MIX:
+      width = 0.10;
+      break;
+    case P_CLIP_CEILING:
+      width = 0.04;
+      break;
+    case P_LIMIT_CEILING:
+      width = 0.035;
+      break;
+    case P_LIMIT_RELEASE:
+    case P_LIMIT_LOOKAHEAD:
+    case P_LIMIT_MIX:
+      width = 0.12;
+      break;
+    case P_SAMPLE_LEVEL:
+    case P_SAMPLE_DIRECT:
+      width = 15.0;
+      break;
+    case P_SAMPLE_PITCH:
+      width = 2.0;
+      break;
+    case P_SAMPLE_START:
+      width = 10.0;
+      break;
+    case P_SAMPLE_FADE:
+      width = 20.0;
+      break;
+    case P_SAMPLE_SENSITIVITY:
+      width = 0.15;
+      break;
+    case P_SAMPLE_OFFSET:
+      width = 2.0;
+      break;
+    default:
+      break;
+  }
+  SuggestedRange r;
+  r.lo = std::max(spec.min, target - width);
+  r.hi = std::min(spec.max, target + width);
+  return r;
+}
+
+
 
 class Shared {
 public:
@@ -360,6 +494,10 @@ public:
     return midiGhostTrigger.exchange(0, std::memory_order_acq_rel);
   }
 
+  uint32_t takeSampleTrigger() noexcept {
+    return midiSampleTrigger.exchange(0, std::memory_order_acq_rel);
+  }
+
   std::atomic<float> inPeakDb, outPeakDb;
   std::atomic<float> inPeakLDb, inPeakRDb;
   std::atomic<float> outPeakLDb, outPeakRDb;
@@ -376,6 +514,7 @@ public:
   std::atomic<float> compHistory[kScopeSize];
   std::atomic<int> compHistoryHead;
   std::atomic<uint32_t> midiGhostTrigger{0};
+  std::atomic<uint32_t> midiSampleTrigger{0};
   std::atomic<float> scopeIn[kScopeSize];
   std::atomic<float> scopeGate[kScopeSize];
   std::atomic<int> scopeHead;
@@ -392,6 +531,7 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   // with its cached parameter values.
   s.set(P_THRESHOLD, kProfiles[drum].thresholdDb);
   s.set(P_DEBLEED, kProfiles[drum].deBleed);
+  s.set(P_GHOST, 50.0);
   const CompDefaults& c = kCompDefaults[drum];
   s.set(P_COMP_MODEL, c.model);
   s.set(P_COMP_THRESHOLD, c.thresholdDb);
@@ -408,6 +548,13 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_DRIVE_TONE, d.tone);
   s.set(P_DRIVE_MIX, d.mix);
   s.set(P_DRIVE_AUTOGAIN, d.autoGain ? 1.0 : 0.0);
+  const EqDefaults& eq = kEqDefaults[drum];
+  s.set(P_EQ_LOW, eq.low);
+  s.set(P_EQ_LOW_MID, eq.lowMid);
+  s.set(P_EQ_HIGH_MID, eq.highMid);
+  s.set(P_EQ_HIGH, eq.high);
+  s.set(P_EQ_HPF, eq.hpf);
+  s.set(P_EQ_LPF, eq.lpf);
   const ClipDefaults& cl = kClipDefaults[drum];
   s.set(P_CLIP_ON, cl.on ? 1.0 : 0.0);
   s.set(P_CLIP_SHAPE, cl.shape);
@@ -416,12 +563,22 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_CLIP_MIX, cl.mix);
   s.set(P_CLIP_OVERSAMPLE, cl.oversample);
   s.set(P_CLIP_AUTOGAIN, cl.autoGain ? 1.0 : 0.0);
+  const LimitDefaults& lim = kLimitDefaults[drum];
   s.set(P_LIMIT_ON, 1.0);
-  s.set(P_LIMIT_CEILING, 0.967);
-  s.set(P_LIMIT_RELEASE, 0.5);
-  s.set(P_LIMIT_LOOKAHEAD, 0.4);
+  s.set(P_LIMIT_CEILING, lim.ceiling);
+  s.set(P_LIMIT_RELEASE, lim.release);
+  s.set(P_LIMIT_LOOKAHEAD, lim.lookahead);
   s.set(P_LIMIT_TRUEPEAK, 1.0);
-  s.set(P_LIMIT_MIX, 1.0);
+  s.set(P_LIMIT_MIX, lim.mix);
+  const SampleDefaults& sm = kSampleDefaults[drum];
+  s.set(P_SAMPLE_LEVEL, sm.level);
+  s.set(P_SAMPLE_DIRECT, sm.direct);
+  s.set(P_SAMPLE_PITCH, sm.pitch);
+  s.set(P_SAMPLE_START, sm.start);
+  s.set(P_SAMPLE_FADE, sm.fadeMs);
+  s.set(P_SAMPLE_SENSITIVITY, sm.sensitivity);
+  s.set(P_SAMPLE_OFFSET, sm.offsetMs);
+  s.set(P_SAMPLE_TRIGGER, static_cast<double>(sm.trigger));
 }
 
 inline Controls controlsFrom(Shared& s) noexcept {
@@ -449,6 +606,8 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.sampleFadeMs = static_cast<float>(s.get(P_SAMPLE_FADE));
   c.sampleTrigger = static_cast<int>(s.get(P_SAMPLE_TRIGGER) + 0.5);
   c.sampleSensitivity = static_cast<float>(s.get(P_SAMPLE_SENSITIVITY));
+  c.sampleOffsetMs = static_cast<float>(s.get(P_SAMPLE_OFFSET));
+  c.sampleMidiTrigger = static_cast<int>(s.takeSampleTrigger());
   c.eqLow = static_cast<float>(s.get(P_EQ_LOW));
   c.eqLowMid = static_cast<float>(s.get(P_EQ_LOW_MID));
   c.eqHighMid = static_cast<float>(s.get(P_EQ_HIGH_MID));

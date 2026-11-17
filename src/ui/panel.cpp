@@ -6,7 +6,10 @@
 #include "presets.hpp"
 #include "value_text.hpp"
 #include "dsp/clip.hpp"
+#include "dsp/limiter.hpp"
+#include "dsp/limiter.hpp"
 #include "dsp/drive/saturation.hpp"
+#include "dsp/sample_io.hpp"
 #include "dsp/wav.hpp"
 
 #include <cairo-ft.h>
@@ -82,7 +85,6 @@ std::vector<const char*> sc(const char* const (&labels)[N]) {
   return std::vector<const char*>(labels, labels + N);
 }
 
-const char* const kScaleDb12[] = {"-12", "0", "+12"};
 const char* const kScaleDb18[] = {"-18", "0", "+18"};
 const char* const kScaleGhost[] = {"OFF", "", "", "", "MAX"};
 
@@ -278,6 +280,89 @@ void Panel::text(cairo_t* cr, const char* s, double x, double y, double size,
   cairo_show_text(cr, s);
 }
 
+std::string guideSummary(int drum, int page) {
+  drum = std::clamp(drum, 0, kDrumCount - 1);
+  const Profile& p = kProfiles[drum];
+  const CompDefaults& c = kCompDefaults[drum];
+  const DriveDefaults& d = kDriveDefaults[drum];
+  const ClipDefaults& cl = kClipDefaults[drum];
+  const EqDefaults& eq = kEqDefaults[drum];
+  const LimitDefaults& lim = kLimitDefaults[drum];
+  const SampleDefaults& sm = kSampleDefaults[drum];
+  char buf[320];
+  switch (page) {
+    case 0:
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   GATE %.0f dB   DEBLEED %.0f%%   "
+                    "GHOST %.0f%%",
+                    kDrumLabels[drum], p.thresholdDb, p.deBleed, 50.0);
+      break;
+    case 1:
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   LEVEL %.0f%%   DIRECT %.0f%%   "
+                    "PITCH %+.0f st   FADE %.0f ms   SENS %.0f%%   OFFSET %.0f ms   TRIG %s",
+                    kDrumLabels[drum], sm.level, sm.direct, sm.pitch, sm.fadeMs,
+                    sm.sensitivity * 100.0f, sm.offsetMs,
+                    kSampleTriggerLabels[std::clamp(sm.trigger, 0, 3)]);
+      break;
+    case 2:
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   LOW %+.1f   LOW MID %+.1f   "
+                    "HIGH MID %+.1f   HIGH %+.1f dB   HPF %.0f Hz",
+                    kDrumLabels[drum], (eq.low - 0.5f) * 24.0f,
+                    (eq.lowMid - 0.5f) * 24.0f,
+                    (eq.highMid - 0.5f) * 24.0f, (eq.high - 0.5f) * 24.0f,
+                    eqHpfHz(eq.hpf));
+      break;
+    case 3: {
+      char ar[48];
+      if (c.model == 1) {
+        std::snprintf(ar, sizeof(ar), "A/R PROGRAM");
+      } else {
+        std::snprintf(ar, sizeof(ar), "A %.1f ms R %.0f ms",
+                      compAttackMs(c.model, c.attack),
+                      compReleaseMs(c.model, c.release));
+      }
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   %s   %s %.0f dB   %.0f:1   "
+                    "TARGET 3-6 dB GR   %s   MIX %.0f%%",
+                    kDrumLabels[drum], kCompModelLabels[std::clamp(c.model, 0, 2)],
+                    c.model == 0 ? "INPUT"
+                                 : (c.model == 1 ? "PEAK RED" : "THRESH"),
+                    c.thresholdDb, compRatioValue(c.ratio), ar,
+                    c.mix * 100.0f);
+      break;
+    }
+    case 4:
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   %s   DRIVE %.0f%%   CHARACTER %.0f%%   "
+                    "TONE %.0f%%   MIX %.0f%%",
+                    kDrumLabels[drum],
+                    kDriveModelLabels[std::clamp(d.model, 0, 4)],
+                    d.drive * 100.0f, d.character * 100.0f, d.tone * 100.0f,
+                    d.mix * 100.0f);
+      break;
+    case 5:
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   %s   DRIVE %.0f%%   CEILING %.1f dB   "
+                    "MIX %.0f%%",
+                    kDrumLabels[drum],
+                    kClipShapeLabels[std::clamp(cl.shape, 0, 2)],
+                    cl.drive * 100.0f, clipCeilingDb(cl.ceiling),
+                    cl.mix * 100.0f);
+      break;
+    default:
+      std::snprintf(buf, sizeof(buf),
+                    "RECOMMENDED FOR %s   LIMIT %.1f dB   RELEASE %.0f%%   "
+                    "LOOKAHEAD %.0f%%   MIX %.0f%%",
+                    kDrumLabels[drum], limiterCeilingDb(lim.ceiling),
+                    lim.release * 100.0f, lim.lookahead * 100.0f,
+                    lim.mix * 100.0f);
+      break;
+  }
+  return buf;
+}
+
 void Panel::layout(const Shared& shared, const PanelState& state) {
   (void)shared;
   (void)state;
@@ -322,6 +407,17 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     widgets_.push_back(t);
   }
 
+  {
+    Widget g{};
+    g.kind = Kind::Guide;
+    g.x = 842.0;
+    g.y = 14.0;
+    g.w = 168.0;
+    g.h = 36.0;
+    g.label = "RECOMMENDED";
+    widgets_.push_back(g);
+  }
+
   auto pill = [&](uint32_t param, double x, double y, double w, double h,
                   const char* label) {
     Widget b{};
@@ -333,19 +429,6 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     b.h = h;
     b.label = label;
     widgets_.push_back(b);
-  };
-
-  auto toggle = [&](uint32_t param, double x, double y, const char* label) {
-    Widget t{};
-    t.kind = Kind::Toggle;
-    t.param = param;
-    t.x = x;
-    t.y = y;
-    t.w = 1.0;
-    t.h = 48;
-    t.label = label;
-    t.buttonText = {label};
-    widgets_.push_back(t);
   };
 
   auto knob = [&](uint32_t param, double x, double y, double r, const char* label,
@@ -384,16 +467,17 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
   if (state.page == 1) {
     // Sample page.
     pill(P_SAMPLE_ON, 100, 182, 150, 26, "SAMPLE ON");
-    knob(P_SAMPLE_LEVEL, 540, 440, 26, "LEVEL");
-    knob(P_SAMPLE_DIRECT, 650, 440, 26, "DIRECT");
-    knob(P_SAMPLE_PITCH, 760, 440, 26, "PITCH");
-    knob(P_SAMPLE_START, 870, 440, 26, "START");
-    knob(P_SAMPLE_SENSITIVITY, 540, 555, 26, "SENSITIVITY");
-    knob(P_SAMPLE_FADE, 650, 555, 26, "FADE");
-    knob(P_SAMPLE_TRIGGER, 760, 555, 26, "TRIGGER",
-         sc(kSampleTriggerLabels), false, 3);
-    pill(P_SAMPLE_REVERSE, 540, 620, 100, 24, "REVERSE");
-    pill(P_SAMPLE_CHOKE, 660, 620, 100, 24, "CHOKE");
+    knob(P_SAMPLE_LEVEL, 520, 440, 26, "LEVEL");
+    knob(P_SAMPLE_DIRECT, 630, 440, 26, "DIRECT");
+    knob(P_SAMPLE_PITCH, 740, 440, 26, "PITCH");
+    knob(P_SAMPLE_START, 850, 440, 26, "START");
+    knob(P_SAMPLE_SENSITIVITY, 520, 555, 26, "SENSITIVITY");
+    knob(P_SAMPLE_FADE, 630, 555, 26, "FADE");
+    knob(P_SAMPLE_TRIGGER, 740, 555, 26, "TRIGGER",
+         sc(kSampleTriggerLabels), false, 4);
+    knob(P_SAMPLE_OFFSET, 820, 555, 26, "OFFSET");
+    pill(P_SAMPLE_REVERSE, 540, 610, 100, 24, "REVERSE");
+    pill(P_SAMPLE_CHOKE, 660, 610, 100, 24, "CHOKE");
   } else if (state.page == 2) {
     // EQ page.
     knob(P_EQ_LOW, 190, 535, 26, "LOW");
@@ -524,6 +608,15 @@ double Panel::presetResetValue(const PanelState& state, uint32_t param) const {
         break;
       }
     }
+    return value;
+  }
+  // Double-click is the "get me back to a safe starting point" gesture, so
+  // it restores this drum's guide rather than the generic factory default.
+  if (state.drum >= 0 && state.drum < kDrumCount) {
+    const double guide = recommendedTarget(param, state.drum);
+    if (std::isfinite(guide)) {
+      value = guide;
+    }
   }
   return value;
 }
@@ -533,7 +626,7 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
   (void)fine;
   if (handlePresetClick(shared, state, x, y)) return true;
   // Sample file list.
-  if (state.page == 1 && x >= 100 && x <= 480 && y >= 262 && y <= 650) {
+  if (state.page == 1 && x >= 100 && x <= 480 && y >= 262 && y <= 480) {
     const int row = static_cast<int>((y - 262) / 23) + state.sampleScroll;
     if (row >= 0 && row < static_cast<int>(state.sampleFiles.size())) {
       loadSample(shared, state, sampleDir() + "/" + state.sampleFiles[row]);
@@ -572,10 +665,16 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
       case Kind::DrumTab: {
         const int drum = static_cast<int>(w.value);
         shared.set(P_DRUM, w.value);
+        state.drum = drum;
         applyDrumDefaults(shared, drum);
         state.presetDirty = true;
         return true;
       }
+      case Kind::Guide:
+        applyDrumDefaults(shared,
+                          static_cast<int>(shared.get(P_DRUM) + 0.5));
+        state.presetDirty = true;
+        return true;
       case Kind::Pill:
         shared.set(w.param, shared.get(w.param) > 0.5 ? 0.0 : 1.0);
         state.presetDirty = true;
@@ -635,7 +734,7 @@ bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
   }
   if (state.page == 1 && x >= 100 && x <= 480 && y >= 220 && y <= 650) {
     const int maxScroll =
-        std::max(0, static_cast<int>(state.sampleFiles.size()) - 16);
+        std::max(0, static_cast<int>(state.sampleFiles.size()) - 9);
     state.sampleScroll =
         std::min(maxScroll, std::max(0, state.sampleScroll - (dy > 0 ? 1 : -1)));
     return true;
@@ -656,6 +755,8 @@ bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
 }
 
 void Panel::tick(const Shared& shared, PanelState& state) const {
+  state.drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0,
+                          kDrumCount - 1);
   state.inLevelL = shared.inPeakLDb.load(std::memory_order_relaxed);
   state.inLevelR = shared.inPeakRDb.load(std::memory_order_relaxed);
   state.outLevelL = shared.outPeakLDb.load(std::memory_order_relaxed);
@@ -692,7 +793,7 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   if (++state.sampleScanTicks >= 60) {
     state.sampleScanTicks = 0;
     state.sampleFiles = listSampleFiles(sampleDir());
-    const int maxScroll = std::max(0, static_cast<int>(state.sampleFiles.size()) - 16);
+    const int maxScroll = std::max(0, static_cast<int>(state.sampleFiles.size()) - 9);
     state.sampleScroll = std::min(std::max(state.sampleScroll, 0), maxScroll);
   }
   const int head = shared.scopeHead.load(std::memory_order_relaxed) &
@@ -836,6 +937,21 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
   cairo_move_to(cr, 30, 155.5);
   cairo_line_to(cr, 1010, 155.5);
   cairo_stroke(cr);
+
+  // Per-drum recommendation strip.  It keeps the "why" next to the controls
+  // instead of hiding the guide in documentation.
+  {
+    roundRect(cr, 40, 650, 960, 20, 3);
+    setRgb(cr, skin.btnOn, 0.10);
+    cairo_fill(cr);
+    setRgb(cr, skin.btnOn, 0.35);
+    cairo_set_line_width(cr, 1.0);
+    roundRect(cr, 40.5, 650.5, 959, 19, 3);
+    cairo_stroke(cr);
+    const std::string guide = guideSummary(drum, page);
+    text(cr, guide.c_str(), kPanelWidth * 0.5, 664, 9.0, 1,
+         skin.legend.r, skin.legend.g, skin.legend.b);
+  }
 
   // Explain why the Bleed Out page has only three knobs.
   if (page == 0) {
@@ -1018,7 +1134,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   }
 
   // File browser.
-  const double bx = 100, by = 220, bw = 380, bh = 430;
+  const double bx = 100, by = 220, bw = 380, bh = 280;
   roundRect(cr, bx, by, bw, bh, 5);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.30);
   cairo_fill(cr);
@@ -1044,7 +1160,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
          1, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
   } else {
     const std::string loaded = sample ? sample->name : std::string();
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 9; ++i) {
       const int index = state.sampleScroll + i;
       if (index >= static_cast<int>(state.sampleFiles.size())) break;
       const std::string& name = state.sampleFiles[static_cast<size_t>(index)];
@@ -1060,7 +1176,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
            selected ? skin.btnTextOn.g : skin.legend.g,
            selected ? skin.btnTextOn.b : skin.legend.b);
     }
-    if (static_cast<int>(state.sampleFiles.size()) > 16) {
+    if (static_cast<int>(state.sampleFiles.size()) > 9) {
       text(cr, "SCROLL TO BROWSE", bx + bw - 14, by + bh - 8, 8.5, 2,
            skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
     }
@@ -1259,10 +1375,10 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
     char ratio[32];
     const int step = std::clamp(
         static_cast<int>(std::lround(shared.get(P_COMP_RATIO))), 0, 8);
-    static const float kRatios[9] = {1.5f, 2.0f, 3.0f, 4.0f, 6.0f,
-                                     8.0f, 12.0f, 20.0f, 20.0f};
     if (step >= 8) std::snprintf(ratio, sizeof(ratio), "ALL BUTTONS");
-    else std::snprintf(ratio, sizeof(ratio), "%.1f:1", kRatios[step]);
+    else
+      std::snprintf(ratio, sizeof(ratio), "%.1f:1",
+                    compRatioValue(static_cast<float>(step)));
     text(cr, ratio, cx + 20, cy + 94, 9.5, 0, skin.legendDim.r,
          skin.legendDim.g, skin.legendDim.b);
   }
@@ -1707,6 +1823,26 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
     case Kind::Ghost:
       drawGhost(cr, w, shared.get(w.param) > 0.5, drum);
       break;
+    case Kind::Guide: {
+      cairo_pattern_t* pat = cairo_pattern_create_linear(0, w.y, 0, w.y + w.h);
+      cairo_pattern_add_color_stop_rgb(pat, 0.0, skin.btnOn.r * 1.08,
+                                       skin.btnOn.g * 1.08, skin.btnOn.b * 1.08);
+      cairo_pattern_add_color_stop_rgb(pat, 1.0, skin.btnOn.r * 0.82,
+                                       skin.btnOn.g * 0.82, skin.btnOn.b * 0.82);
+      roundRect(cr, w.x, w.y, w.w, w.h, 4);
+      cairo_set_source(cr, pat);
+      cairo_fill(cr);
+      cairo_pattern_destroy(pat);
+      setRgb(cr, {0, 0, 0}, 0.35);
+      cairo_set_line_width(cr, 1.0);
+      roundRect(cr, w.x + 0.5, w.y + 0.5, w.w - 1, w.h - 1, 4);
+      cairo_stroke(cr);
+      text(cr, w.label, w.x + w.w * 0.5, w.y + 16, 11, 1, skin.btnTextOn.r,
+           skin.btnTextOn.g, skin.btnTextOn.b);
+      text(cr, "restore this drum's guide", w.x + w.w * 0.5, w.y + 29, 7.5, 1,
+           skin.btnTextOn.r, skin.btnTextOn.g, skin.btnTextOn.b);
+      break;
+    }
   }
 }
 
@@ -1858,14 +1994,29 @@ void Panel::drawKnob(cairo_t* cr, const Widget& w, double value,
   }
 
   const ParamSpec& spec = kParamSpecs[w.param];
-  const SuggestedRange range = recommendedRange(w.param);
+  const SuggestedRange range = recommendedRange(w.param, drum);
+  const double target = recommendedTarget(w.param, drum);
   if (!spec.stepped && range.hi > range.lo) {
-    const double f0 = clamp01((range.lo - spec.min) / (spec.max - spec.min));
-    const double f1 = clamp01((range.hi - spec.min) / (spec.max - spec.min));
+    const double f0 = clamp01((range.lo - spec.min) /
+                              std::max(1.0e-9, spec.max - spec.min));
+    const double f1 = clamp01((range.hi - spec.min) /
+                              std::max(1.0e-9, spec.max - spec.min));
     cairo_set_line_width(cr, 4.0);
     setRgb(cr, skin.btnOn, 0.30);
     cairo_arc(cr, cx, cy, r + 6, knobAngle(f0), knobAngle(f1));
     cairo_stroke(cr);
+    if (std::isfinite(target)) {
+      const double ft = clamp01((target - spec.min) /
+                                std::max(1.0e-9, spec.max - spec.min));
+      const double at = knobAngle(ft);
+      cairo_set_line_width(cr, 2.0);
+      setRgb(cr, skin.btnOn, 0.95);
+      cairo_move_to(cr, cx + std::cos(at) * (r + 4),
+                    cy + std::sin(at) * (r + 4));
+      cairo_line_to(cr, cx + std::cos(at) * (r + 11),
+                    cy + std::sin(at) * (r + 11));
+      cairo_stroke(cr);
+    }
   }
 
   const double vmax = w.steps > 1 ? w.steps - 1 : spec.max;
@@ -2084,15 +2235,9 @@ void Panel::applyPreset(Shared& shared, PanelState& state, int index) const {
 
 bool Panel::loadSample(Shared& shared, PanelState& state,
                        const std::string& path) const {
-  std::vector<float> data;
-  if (!readWavMono(path, data, 48000) || data.empty()) {
-    return false;
-  }
-  auto buffer = std::make_shared<SampleBuffer>();
-  buffer->data = std::move(data);
-  buffer->sampleRate = 48000;
-  buffer->name = std::filesystem::path(path).filename().string();
-  shared.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+  auto buffer = loadSampleFile(path);
+  if (!buffer) return false;
+  shared.setSample(std::move(buffer));
   shared.set(P_SAMPLE_ON, 1.0);
   state.presetDirty = true;
   return true;

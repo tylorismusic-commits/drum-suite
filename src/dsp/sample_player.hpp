@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <vector>
 
 #include "controls.hpp"
 
@@ -19,6 +20,8 @@ class SamplePlayer {
 public:
   void prepare(float sampleRate) noexcept {
     sr_ = sampleRate > 0.0f ? sampleRate : 48000.0f;
+    pendingSize_ = std::max(1, static_cast<int>(0.010f * sr_) + 2);
+    pending_.assign(static_cast<size_t>(pendingSize_), 0);
     reset();
   }
 
@@ -26,6 +29,11 @@ public:
     for (auto& v : voices_) v = Voice{};
     nextVoice_ = 0;
     prevPeak_ = 0.0f;
+    pendingPos_ = 0;
+    pendingMidi_ = 0;
+    if (!pending_.empty()) {
+      std::fill(pending_.begin(), pending_.end(), 0);
+    }
   }
 
   void setSample(std::shared_ptr<const SampleBuffer> sample) noexcept {
@@ -44,6 +52,18 @@ public:
     fadeSamples_ = std::max(1, static_cast<int>(c.sampleFadeMs * 0.001f * sr_));
     triggerMode_ = c.sampleTrigger;
     triggerThreshold_ = 0.004f + 0.12f * (1.0f - std::clamp(c.sampleSensitivity, 0.0f, 1.0f));
+    offsetSamples_ = std::clamp(
+        static_cast<int>(c.sampleOffsetMs * 0.001f * sr_), 0,
+        std::max(0, pendingSize_ - 1));
+    if (!on_) {
+      pendingMidi_ = 0;
+      if (!pending_.empty()) std::fill(pending_.begin(), pending_.end(), 0);
+    } else if (triggerMode_ == 2 || triggerMode_ == 3) {
+      pendingMidi_ =
+          std::min(8, pendingMidi_ + std::max(0, c.sampleMidiTrigger));
+    } else {
+      pendingMidi_ = 0;
+    }
   }
 
   void process(float* left, float* right, const uint8_t* trigger, int frames,
@@ -51,6 +71,7 @@ public:
     meters.sampleVoices = 0;
     meters.sampleTriggered = false;
     if (!on_ || !sample_ || sample_->data.empty()) {
+      pendingMidi_ = 0;
       return;
     }
     const auto& data = sample_->data;
@@ -71,12 +92,24 @@ public:
         case 1:  // Independent transient detector
           fire = transientFire;
           break;
-        default:  // Always: either source
+        case 2:  // Either source
           fire = gateFire || transientFire;
           break;
+        default:  // MIDI only; scheduled below
+          fire = false;
+          break;
       }
+      if (pendingMidi_ > 0 &&
+          (triggerMode_ == 2 || triggerMode_ == 3)) {
+        scheduleTrigger();
+        --pendingMidi_;
+      }
+      if (fire) scheduleTrigger();
+      const bool due = pending_[static_cast<size_t>(pendingPos_)] != 0;
+      pending_[static_cast<size_t>(pendingPos_)] = 0;
+      pendingPos_ = (pendingPos_ + 1) % pendingSize_;
       prevPeak_ = peak;
-      if (fire) {
+      if (due) {
         triggerVoice(len, stepBase);
         meters.sampleTriggered = true;
       }
@@ -131,6 +164,12 @@ private:
            data[static_cast<size_t>(i0 + 1)] * frac;
   }
 
+  void scheduleTrigger() noexcept {
+    if (pending_.empty()) return;
+    const int index = (pendingPos_ + offsetSamples_) % pendingSize_;
+    pending_[static_cast<size_t>(index)] = 1;
+  }
+
   void triggerVoice(int len, float stepBase) noexcept {
     if (choke_) {
       for (auto& v : voices_) v.active = false;
@@ -155,6 +194,11 @@ private:
   bool choke_ = true;
   int fadeSamples_ = 144;
   int triggerMode_ = 0;
+  int offsetSamples_ = 0;
+  int pendingMidi_ = 0;
+  int pendingPos_ = 0;
+  int pendingSize_ = 1;
+  std::vector<uint8_t> pending_;
   float triggerThreshold_ = 0.02f;
   float prevPeak_ = 0.0f;
   int nextVoice_ = 0;

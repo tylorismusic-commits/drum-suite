@@ -380,6 +380,49 @@ int main() {
     player.process(hit.data(), hitR.data(), gateFire.data(), 64, meters);
     check(meters.sampleTriggered,
           "Always trigger accepts a gate event");
+
+    // MIDI is its own trigger mode and is ignored in Gate mode.
+    Controls midi = c;
+    midi.sampleTrigger = 3;
+    midi.sampleMidiTrigger = 1;
+    hit = makeHit();
+    hitR = makeHit();
+    std::fill(hit.begin(), hit.end(), 0.0f);
+    std::fill(hitR.begin(), hitR.end(), 0.0f);
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(midi);
+    player.process(hit.data(), hitR.data(), none.data(), 64, meters);
+    check(meters.sampleTriggered, "MIDI mode fires from a MIDI trigger");
+
+    Controls gateNoMidi = c;
+    gateNoMidi.sampleTrigger = 0;
+    gateNoMidi.sampleMidiTrigger = 1;
+    hit = makeHit();
+    hitR = makeHit();
+    std::fill(hit.begin(), hit.end(), 0.0f);
+    std::fill(hitR.begin(), hitR.end(), 0.0f);
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(gateNoMidi);
+    player.process(hit.data(), hitR.data(), none.data(), 64, meters);
+    check(!meters.sampleTriggered, "Gate mode ignores the MIDI trigger");
+
+    // Positive trigger offset delays the voice.
+    Controls offset = c;
+    offset.sampleTrigger = 0;
+    offset.sampleOffsetMs = 5.0f;  // 240 samples at 48 kHz
+    std::vector<uint8_t> gate(512, 0);
+    gate[0] = 1;
+    std::vector<float> ol(512, 0.0f), orr(512, 0.0f);
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(offset);
+    player.process(ol.data(), orr.data(), gate.data(), 64, meters);
+    check(!meters.sampleTriggered && meters.sampleVoices == 0,
+          "trigger offset holds the voice back");
+    std::vector<uint8_t> none2(448, 0);
+    player.process(ol.data() + 64, orr.data() + 64, none2.data(), 448, meters);
+    check(meters.sampleTriggered && meters.sampleVoices > 0,
+          "trigger offset fires after the delay");
+
   }
 
   {
@@ -429,7 +472,7 @@ int main() {
     comp.compRatio = 6.0f;
     comp.compAttack = 0.1f;
     comp.compRelease = 0.35f;
-    comp.compMakeup = 0.5f;
+    comp.compMakeup = 0.40f;
     comp.compMix = 1.0f;
     comp.compScHpf = 0.0f;
 
@@ -700,15 +743,21 @@ int main() {
   {
     bool rangesOk = true;
     int rangeCount = 0;
-    for (uint32_t id = 0; id < P_COUNT; ++id) {
-      const SuggestedRange r = recommendedRange(id);
-      if (r.hi <= r.lo) continue;
-      ++rangeCount;
-      const ParamSpec& spec = kParamSpecs[id];
-      if (r.lo < spec.min || r.hi > spec.max || spec.stepped) rangesOk = false;
+    for (int drum = 0; drum < kDrumCount; ++drum) {
+      for (uint32_t id = 0; id < P_COUNT; ++id) {
+        const SuggestedRange r = recommendedRange(id, drum);
+        const double target = recommendedTarget(id, drum);
+        if (r.hi <= r.lo) continue;
+        ++rangeCount;
+        const ParamSpec& spec = kParamSpecs[id];
+        if (r.lo < spec.min || r.hi > spec.max || spec.stepped ||
+            !std::isfinite(target) || target < r.lo || target > r.hi) {
+          rangesOk = false;
+        }
+      }
     }
-    check(rangeCount >= 20 && rangesOk,
-          "suggested ranges are valid and inside every parameter range");
+    check(rangeCount >= 20 * kDrumCount && rangesOk,
+          "every drum has valid, distinct suggested ranges");
   }
 
   std::printf("%d failure(s)\n", gFailures);

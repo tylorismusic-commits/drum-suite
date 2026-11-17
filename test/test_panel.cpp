@@ -86,6 +86,20 @@ int main() {
     check(std::fabs(shared.get(P_DEBLEED) - kProfiles[1].deBleed) < 1e-6,
           "Snare profile applies its DeBleed default");
 
+    // The header button restores this drum's complete recommendation.
+    shared.set(P_THRESHOLD, -55.0);
+    shared.set(P_EQ_LOW, 0.05);
+    shared.set(P_LIMIT_CEILING, 0.5);
+    panel.pointerDown(shared, state, 920, 32, false);
+    panel.pointerUp();
+    check(std::fabs(shared.get(P_THRESHOLD) - kProfiles[1].thresholdDb) < 1e-6,
+          "Recommended restores the Snare gate setting");
+    check(std::fabs(shared.get(P_EQ_LOW) - kEqDefaults[1].low) < 1e-6,
+          "Recommended restores the Snare EQ setting");
+    check(std::fabs(shared.get(P_LIMIT_CEILING) - kLimitDefaults[1].ceiling) <
+              1e-6,
+          "Recommended restores the Snare limiter setting");
+
     // Ghost icon toggles ghost mode.
     panel.pointerDown(shared, state, 886, 430, false);
     panel.pointerUp();
@@ -206,7 +220,25 @@ int main() {
     check(shared.sample() != nullptr, "clicking a sample row loads it");
     check(shared.sample() && shared.sample()->data.size() == 4800,
           "loaded sample keeps its length");
+    check(shared.sample() && !shared.sample()->path.empty(),
+          "loaded sample remembers its file path");
     check(shared.get(P_SAMPLE_ON) > 0.5, "loading a sample enables the layer");
+  }
+
+  {
+    Shared shared;
+    Panel panel;
+    PanelState state;
+    shared.set(P_DRUM, 1.0);
+    shared.set(P_EQ_HPF, 0.0);
+    shared.set(P_COMP_MODEL, 2.0);
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 926, 32, false);
+    panel.pointerUp();
+    check(std::fabs(shared.get(P_EQ_HPF) - kEqDefaults[1].hpf) < 1e-6,
+          "recommended button applies the drum EQ guide");
+    check(shared.get(P_COMP_MODEL) == static_cast<double>(kCompDefaults[1].model),
+          "recommended button applies the drum compressor guide");
   }
 
   {
@@ -244,6 +276,17 @@ int main() {
       panel.applyPreset(shared, state, busPreset);
       check(shared.get(P_COMP_MODEL) == 2.0,
             "Bus preset applies the VCA compressor profile");
+    }
+    int roomPreset = -1;
+    for (int i = 0; i < kPresetCount; ++i) {
+      if (std::string(kPresets[i].name) == "Snare — Room") roomPreset = i;
+    }
+    check(roomPreset >= 0, "full-chain Snare Room preset exists");
+    if (roomPreset >= 0) {
+      panel.applyPreset(shared, state, roomPreset);
+      check(std::fabs(shared.get(P_DRIVE_MIX) - 0.50) < 1e-9 &&
+                std::fabs(shared.get(P_CLIP_MIX) - 0.35) < 1e-9,
+            "full-chain preset restores drive and clip values");
     }
   }
 

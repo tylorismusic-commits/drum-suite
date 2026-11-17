@@ -74,6 +74,63 @@ inline constexpr PresetValue kBusGlue[] = {
     PV(P_POWER, 1), PV(P_DRUM, 7), PV(P_GATE_ON, 1), PV(P_THRESHOLD, -42),
     PV(P_DEBLEED, 0), PV(P_GHOST_MODE, 0), PV(P_GHOST, 50)};
 
+inline constexpr PresetValue kKickModern[] = {
+    PV(P_POWER, 1), PV(P_DRUM, 0), PV(P_GATE_ON, 1), PV(P_THRESHOLD, -30),
+    PV(P_DEBLEED, 65), PV(P_GHOST_MODE, 0),
+    PV(P_COMP_MODEL, 0), PV(P_COMP_THRESHOLD, -20), PV(P_COMP_RATIO, 4),
+    PV(P_COMP_ATTACK, 0.20), PV(P_COMP_RELEASE, 0.30), PV(P_COMP_MAKEUP, 0.80),
+    PV(P_COMP_MIX, 1.0), PV(P_COMP_SC_HPF, 0.05),
+    PV(P_DRIVE_MODEL, 0), PV(P_DRIVE_DRIVE, 0.50), PV(P_DRIVE_CHARACTER, 0.60),
+    PV(P_DRIVE_TONE, 0.40), PV(P_DRIVE_MIX, 0.40), PV(P_DRIVE_AUTOGAIN, 1),
+    PV(P_CLIP_ON, 1), PV(P_CLIP_SHAPE, 0), PV(P_CLIP_DRIVE, 0.40),
+    PV(P_CLIP_CEILING, 0.85), PV(P_CLIP_MIX, 0.30), PV(P_CLIP_OVERSAMPLE, 1),
+    PV(P_CLIP_AUTOGAIN, 1), PV(P_LIMIT_ON, 1), PV(P_LIMIT_CEILING, 0.967)};
+
+inline constexpr PresetValue kSnareRoom[] = {
+    PV(P_POWER, 1), PV(P_DRUM, 1), PV(P_GATE_ON, 1), PV(P_THRESHOLD, -32),
+    PV(P_DEBLEED, 75), PV(P_GHOST_MODE, 0),
+    PV(P_COMP_MODEL, 0), PV(P_COMP_THRESHOLD, -24), PV(P_COMP_RATIO, 5),
+    PV(P_COMP_ATTACK, 0.12), PV(P_COMP_RELEASE, 0.50), PV(P_COMP_MAKEUP, 0.80),
+    PV(P_COMP_MIX, 0.85), PV(P_COMP_SC_HPF, 0.25),
+    PV(P_DRIVE_MODEL, 1), PV(P_DRIVE_DRIVE, 0.55), PV(P_DRIVE_CHARACTER, 0.65),
+    PV(P_DRIVE_TONE, 0.55), PV(P_DRIVE_MIX, 0.50), PV(P_DRIVE_AUTOGAIN, 1),
+    PV(P_CLIP_ON, 1), PV(P_CLIP_SHAPE, 2), PV(P_CLIP_DRIVE, 0.45),
+    PV(P_CLIP_CEILING, 0.85), PV(P_CLIP_MIX, 0.35), PV(P_CLIP_OVERSAMPLE, 1),
+    PV(P_CLIP_AUTOGAIN, 1), PV(P_LIMIT_ON, 1), PV(P_LIMIT_CEILING, 0.967)};
+
+inline constexpr PresetValue kHatBright[] = {
+    PV(P_POWER, 1), PV(P_DRUM, 3), PV(P_GATE_ON, 1), PV(P_THRESHOLD, -36),
+    PV(P_DEBLEED, 25), PV(P_GHOST_MODE, 0),
+    PV(P_COMP_MODEL, 1), PV(P_COMP_THRESHOLD, -18), PV(P_COMP_RATIO, 2),
+    PV(P_COMP_MAKEUP, 0.40), PV(P_COMP_MIX, 0.50), PV(P_COMP_SC_HPF, 0.60),
+    PV(P_DRIVE_MODEL, 4), PV(P_DRIVE_DRIVE, 0.30), PV(P_DRIVE_CHARACTER, 0.40),
+    PV(P_DRIVE_TONE, 0.65), PV(P_DRIVE_MIX, 0.25), PV(P_DRIVE_AUTOGAIN, 1),
+    PV(P_CLIP_ON, 0), PV(P_LIMIT_ON, 1), PV(P_LIMIT_CEILING, 0.967)};
+
+inline constexpr PresetValue kRoomCrunch[] = {
+    PV(P_POWER, 1), PV(P_DRUM, 5), PV(P_GATE_ON, 1), PV(P_THRESHOLD, -40),
+    PV(P_DEBLEED, 10), PV(P_GHOST_MODE, 0),
+    PV(P_COMP_MODEL, 2), PV(P_COMP_THRESHOLD, -14), PV(P_COMP_RATIO, 3),
+    PV(P_COMP_ATTACK, 0.35), PV(P_COMP_RELEASE, 0.55), PV(P_COMP_MAKEUP, 0.42),
+    PV(P_COMP_MIX, 1.0), PV(P_COMP_SC_HPF, 0.65),
+    PV(P_DRIVE_MODEL, 3), PV(P_DRIVE_DRIVE, 0.55), PV(P_DRIVE_CHARACTER, 0.60),
+    PV(P_DRIVE_TONE, 0.50), PV(P_DRIVE_MIX, 0.40), PV(P_DRIVE_AUTOGAIN, 1),
+    PV(P_CLIP_ON, 1), PV(P_CLIP_SHAPE, 0), PV(P_CLIP_DRIVE, 0.40),
+    PV(P_CLIP_CEILING, 0.85), PV(P_CLIP_MIX, 0.25), PV(P_CLIP_OVERSAMPLE, 1),
+    PV(P_CLIP_AUTOGAIN, 1), PV(P_LIMIT_ON, 1), PV(P_LIMIT_CEILING, 0.967)};
+
+inline constexpr PresetValue kBusFullGlue[] = {
+    PV(P_POWER, 1), PV(P_DRUM, 7), PV(P_GATE_ON, 1), PV(P_THRESHOLD, -45),
+    PV(P_DEBLEED, 0), PV(P_GHOST_MODE, 0),
+    PV(P_COMP_MODEL, 2), PV(P_COMP_THRESHOLD, -12), PV(P_COMP_RATIO, 4),
+    PV(P_COMP_ATTACK, 0.40), PV(P_COMP_RELEASE, 0.60), PV(P_COMP_MAKEUP, 0.38),
+    PV(P_COMP_MIX, 1.0), PV(P_COMP_SC_HPF, 0.70),
+    PV(P_DRIVE_MODEL, 2), PV(P_DRIVE_DRIVE, 0.45), PV(P_DRIVE_CHARACTER, 0.55),
+    PV(P_DRIVE_TONE, 0.50), PV(P_DRIVE_MIX, 0.30), PV(P_DRIVE_AUTOGAIN, 1),
+    PV(P_CLIP_ON, 1), PV(P_CLIP_SHAPE, 2), PV(P_CLIP_DRIVE, 0.40),
+    PV(P_CLIP_CEILING, 0.85), PV(P_CLIP_MIX, 0.30), PV(P_CLIP_OVERSAMPLE, 2),
+    PV(P_CLIP_AUTOGAIN, 1), PV(P_LIMIT_ON, 1), PV(P_LIMIT_CEILING, 0.967)};
+
 #undef PV
 
 inline constexpr Preset kPresets[] = {
@@ -89,6 +146,11 @@ inline constexpr Preset kPresets[] = {
     {"Room", "Room — Glue", 5, kRoomGlue, static_cast<int>(sizeof(kRoomGlue) / sizeof(kRoomGlue[0]))},
     {"Overheads", "OH — Wide", 6, kOhWide, static_cast<int>(sizeof(kOhWide) / sizeof(kOhWide[0]))},
     {"Bus", "Bus — Glue", 7, kBusGlue, static_cast<int>(sizeof(kBusGlue) / sizeof(kBusGlue[0]))},
+    {"Kick", "Kick — Modern", 0, kKickModern, static_cast<int>(sizeof(kKickModern) / sizeof(kKickModern[0]))},
+    {"Snare", "Snare — Room", 1, kSnareRoom, static_cast<int>(sizeof(kSnareRoom) / sizeof(kSnareRoom[0]))},
+    {"Hats", "Hat — Bright", 3, kHatBright, static_cast<int>(sizeof(kHatBright) / sizeof(kHatBright[0]))},
+    {"Room", "Room — Crunch", 5, kRoomCrunch, static_cast<int>(sizeof(kRoomCrunch) / sizeof(kRoomCrunch[0]))},
+    {"Bus", "Bus — Full Glue", 7, kBusFullGlue, static_cast<int>(sizeof(kBusFullGlue) / sizeof(kBusFullGlue[0]))},
 };
 
 inline constexpr int kPresetCount = static_cast<int>(sizeof(kPresets) / sizeof(kPresets[0]));

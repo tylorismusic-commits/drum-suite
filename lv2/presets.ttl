@@ -226,3 +226,180 @@
     [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
     [ lv2:symbol "ghost" ; pset:value 50 ] .
 
+<https://github.com/tylorismusic-commits/drum-suite#preset_kick-modern>
+    a pset:Preset ;
+    lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
+    rdfs:label "Kick — Modern" ;
+    rdfs:comment "Kick" ;
+    pset:bank <https://github.com/tylorismusic-commits/drum-suite#bank_kick> ;
+    lv2:port
+    [ lv2:symbol "power" ; pset:value 1 ] ,
+    [ lv2:symbol "drum" ; pset:value 0 ] ,
+    [ lv2:symbol "gate_on" ; pset:value 1 ] ,
+    [ lv2:symbol "threshold" ; pset:value -30 ] ,
+    [ lv2:symbol "debleed" ; pset:value 65 ] ,
+    [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_model" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_threshold" ; pset:value -20 ] ,
+    [ lv2:symbol "comp_ratio" ; pset:value 4 ] ,
+    [ lv2:symbol "comp_attack" ; pset:value 0.2 ] ,
+    [ lv2:symbol "comp_release" ; pset:value 0.3 ] ,
+    [ lv2:symbol "comp_makeup" ; pset:value 0.8 ] ,
+    [ lv2:symbol "comp_mix" ; pset:value 1 ] ,
+    [ lv2:symbol "comp_sc_hpf" ; pset:value 0.05 ] ,
+    [ lv2:symbol "drive_model" ; pset:value 0 ] ,
+    [ lv2:symbol "drive_drive" ; pset:value 0.5 ] ,
+    [ lv2:symbol "drive_character" ; pset:value 0.6 ] ,
+    [ lv2:symbol "drive_tone" ; pset:value 0.4 ] ,
+    [ lv2:symbol "drive_mix" ; pset:value 0.4 ] ,
+    [ lv2:symbol "drive_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_on" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_shape" ; pset:value 0 ] ,
+    [ lv2:symbol "clip_drive" ; pset:value 0.4 ] ,
+    [ lv2:symbol "clip_ceiling" ; pset:value 0.85 ] ,
+    [ lv2:symbol "clip_mix" ; pset:value 0.3 ] ,
+    [ lv2:symbol "clip_oversample" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_on" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_ceiling" ; pset:value 0.967 ] .
+
+<https://github.com/tylorismusic-commits/drum-suite#preset_snare-room>
+    a pset:Preset ;
+    lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
+    rdfs:label "Snare — Room" ;
+    rdfs:comment "Snare" ;
+    pset:bank <https://github.com/tylorismusic-commits/drum-suite#bank_snare> ;
+    lv2:port
+    [ lv2:symbol "power" ; pset:value 1 ] ,
+    [ lv2:symbol "drum" ; pset:value 1 ] ,
+    [ lv2:symbol "gate_on" ; pset:value 1 ] ,
+    [ lv2:symbol "threshold" ; pset:value -32 ] ,
+    [ lv2:symbol "debleed" ; pset:value 75 ] ,
+    [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_model" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_threshold" ; pset:value -24 ] ,
+    [ lv2:symbol "comp_ratio" ; pset:value 5 ] ,
+    [ lv2:symbol "comp_attack" ; pset:value 0.12 ] ,
+    [ lv2:symbol "comp_release" ; pset:value 0.5 ] ,
+    [ lv2:symbol "comp_makeup" ; pset:value 0.8 ] ,
+    [ lv2:symbol "comp_mix" ; pset:value 0.85 ] ,
+    [ lv2:symbol "comp_sc_hpf" ; pset:value 0.25 ] ,
+    [ lv2:symbol "drive_model" ; pset:value 1 ] ,
+    [ lv2:symbol "drive_drive" ; pset:value 0.55 ] ,
+    [ lv2:symbol "drive_character" ; pset:value 0.65 ] ,
+    [ lv2:symbol "drive_tone" ; pset:value 0.55 ] ,
+    [ lv2:symbol "drive_mix" ; pset:value 0.5 ] ,
+    [ lv2:symbol "drive_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_on" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_shape" ; pset:value 2 ] ,
+    [ lv2:symbol "clip_drive" ; pset:value 0.45 ] ,
+    [ lv2:symbol "clip_ceiling" ; pset:value 0.85 ] ,
+    [ lv2:symbol "clip_mix" ; pset:value 0.35 ] ,
+    [ lv2:symbol "clip_oversample" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_on" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_ceiling" ; pset:value 0.967 ] .
+
+<https://github.com/tylorismusic-commits/drum-suite#preset_hat-bright>
+    a pset:Preset ;
+    lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
+    rdfs:label "Hat — Bright" ;
+    rdfs:comment "Hats" ;
+    pset:bank <https://github.com/tylorismusic-commits/drum-suite#bank_hats> ;
+    lv2:port
+    [ lv2:symbol "power" ; pset:value 1 ] ,
+    [ lv2:symbol "drum" ; pset:value 3 ] ,
+    [ lv2:symbol "gate_on" ; pset:value 1 ] ,
+    [ lv2:symbol "threshold" ; pset:value -36 ] ,
+    [ lv2:symbol "debleed" ; pset:value 25 ] ,
+    [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_model" ; pset:value 1 ] ,
+    [ lv2:symbol "comp_threshold" ; pset:value -18 ] ,
+    [ lv2:symbol "comp_ratio" ; pset:value 2 ] ,
+    [ lv2:symbol "comp_makeup" ; pset:value 0.4 ] ,
+    [ lv2:symbol "comp_mix" ; pset:value 0.5 ] ,
+    [ lv2:symbol "comp_sc_hpf" ; pset:value 0.6 ] ,
+    [ lv2:symbol "drive_model" ; pset:value 4 ] ,
+    [ lv2:symbol "drive_drive" ; pset:value 0.3 ] ,
+    [ lv2:symbol "drive_character" ; pset:value 0.4 ] ,
+    [ lv2:symbol "drive_tone" ; pset:value 0.65 ] ,
+    [ lv2:symbol "drive_mix" ; pset:value 0.25 ] ,
+    [ lv2:symbol "drive_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_on" ; pset:value 0 ] ,
+    [ lv2:symbol "limit_on" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_ceiling" ; pset:value 0.967 ] .
+
+<https://github.com/tylorismusic-commits/drum-suite#preset_room-crunch>
+    a pset:Preset ;
+    lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
+    rdfs:label "Room — Crunch" ;
+    rdfs:comment "Room" ;
+    pset:bank <https://github.com/tylorismusic-commits/drum-suite#bank_room> ;
+    lv2:port
+    [ lv2:symbol "power" ; pset:value 1 ] ,
+    [ lv2:symbol "drum" ; pset:value 5 ] ,
+    [ lv2:symbol "gate_on" ; pset:value 1 ] ,
+    [ lv2:symbol "threshold" ; pset:value -40 ] ,
+    [ lv2:symbol "debleed" ; pset:value 10 ] ,
+    [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_model" ; pset:value 2 ] ,
+    [ lv2:symbol "comp_threshold" ; pset:value -14 ] ,
+    [ lv2:symbol "comp_ratio" ; pset:value 3 ] ,
+    [ lv2:symbol "comp_attack" ; pset:value 0.35 ] ,
+    [ lv2:symbol "comp_release" ; pset:value 0.55 ] ,
+    [ lv2:symbol "comp_makeup" ; pset:value 0.42 ] ,
+    [ lv2:symbol "comp_mix" ; pset:value 1 ] ,
+    [ lv2:symbol "comp_sc_hpf" ; pset:value 0.65 ] ,
+    [ lv2:symbol "drive_model" ; pset:value 3 ] ,
+    [ lv2:symbol "drive_drive" ; pset:value 0.55 ] ,
+    [ lv2:symbol "drive_character" ; pset:value 0.6 ] ,
+    [ lv2:symbol "drive_tone" ; pset:value 0.5 ] ,
+    [ lv2:symbol "drive_mix" ; pset:value 0.4 ] ,
+    [ lv2:symbol "drive_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_on" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_shape" ; pset:value 0 ] ,
+    [ lv2:symbol "clip_drive" ; pset:value 0.4 ] ,
+    [ lv2:symbol "clip_ceiling" ; pset:value 0.85 ] ,
+    [ lv2:symbol "clip_mix" ; pset:value 0.25 ] ,
+    [ lv2:symbol "clip_oversample" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_on" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_ceiling" ; pset:value 0.967 ] .
+
+<https://github.com/tylorismusic-commits/drum-suite#preset_bus-full-glue>
+    a pset:Preset ;
+    lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
+    rdfs:label "Bus — Full Glue" ;
+    rdfs:comment "Bus" ;
+    pset:bank <https://github.com/tylorismusic-commits/drum-suite#bank_bus> ;
+    lv2:port
+    [ lv2:symbol "power" ; pset:value 1 ] ,
+    [ lv2:symbol "drum" ; pset:value 7 ] ,
+    [ lv2:symbol "gate_on" ; pset:value 1 ] ,
+    [ lv2:symbol "threshold" ; pset:value -45 ] ,
+    [ lv2:symbol "debleed" ; pset:value 0 ] ,
+    [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_model" ; pset:value 2 ] ,
+    [ lv2:symbol "comp_threshold" ; pset:value -12 ] ,
+    [ lv2:symbol "comp_ratio" ; pset:value 4 ] ,
+    [ lv2:symbol "comp_attack" ; pset:value 0.4 ] ,
+    [ lv2:symbol "comp_release" ; pset:value 0.6 ] ,
+    [ lv2:symbol "comp_makeup" ; pset:value 0.38 ] ,
+    [ lv2:symbol "comp_mix" ; pset:value 1 ] ,
+    [ lv2:symbol "comp_sc_hpf" ; pset:value 0.7 ] ,
+    [ lv2:symbol "drive_model" ; pset:value 2 ] ,
+    [ lv2:symbol "drive_drive" ; pset:value 0.45 ] ,
+    [ lv2:symbol "drive_character" ; pset:value 0.55 ] ,
+    [ lv2:symbol "drive_tone" ; pset:value 0.5 ] ,
+    [ lv2:symbol "drive_mix" ; pset:value 0.3 ] ,
+    [ lv2:symbol "drive_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_on" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_shape" ; pset:value 2 ] ,
+    [ lv2:symbol "clip_drive" ; pset:value 0.4 ] ,
+    [ lv2:symbol "clip_ceiling" ; pset:value 0.85 ] ,
+    [ lv2:symbol "clip_mix" ; pset:value 0.3 ] ,
+    [ lv2:symbol "clip_oversample" ; pset:value 2 ] ,
+    [ lv2:symbol "clip_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_on" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_ceiling" ; pset:value 0.967 ] .
+

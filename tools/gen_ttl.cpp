@@ -323,6 +323,22 @@ std::string buildPluginTtl() {
   }
 
   {
+    std::ostringstream p;
+    p << "    [\n";
+    p << "        a lv2:OutputPort , lv2:ControlPort ;\n";
+    p << "        lv2:index " << index++ << " ;\n";
+    p << "        lv2:symbol \"sample_rate\" ;\n";
+    p << "        lv2:name \"Sample Rate\" ;\n";
+    p << "        lv2:default 48000 ;\n";
+    p << "        lv2:minimum 1 ;\n";
+    p << "        lv2:maximum 384000 ;\n";
+    p << "        lv2:portProperty pprops:notOnGUI ;\n";
+    p << "        pg:group <" << groupUri("Meter") << "> ;\n";
+    p << "    ]";
+    ports.push_back(p.str());
+  }
+
+  {
     // Latency in samples, for host delay compensation.  It changes with the
     // oversampling mode, so hosts must read it every cycle.
     std::ostringstream p;

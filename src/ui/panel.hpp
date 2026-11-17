@@ -17,6 +17,7 @@ constexpr int kPanelHeight = 720;
 
 struct PanelState {
   int page = 0;  // 0 Bleed Out, 1 Sample, 2 EQ, 3 Comp, 4 Drive, 5 Clip, 6 Limit
+  int drum = 0;  // mirrors P_DRUM for the per-drum recommendations
   int presetIndex = -1;
   bool presetDirty = false;
   int presetOpen = 0;
@@ -98,6 +99,7 @@ private:
     Button,
     Toggle,
     Ghost,
+    Guide,
   };
 
   struct Widget {

@@ -1,6 +1,6 @@
 # Drum Suite
 
-**Version 0.7.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.8.0 — Linux x86_64** · GPL-3.0-or-later
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -59,10 +59,13 @@ open.
   a marker on the waveform).
 - **Reverse**, **Choke** and **Fade** shape the one-shot.
 - **Trigger** chooses **Gate** (Bleed Out opens), **Transient** (independent
-  input onset detector) or **Always** (either source).
+  input onset detector), **Always** (either audio source) or **MIDI**.
 - **Sensitivity** sets the transient threshold.
+- **Offset** delays the sample by 0–10 ms for alignment.
 - Four voices; choke is on by default. The waveform badge shows the live voice
   count and trigger LED.
+- The sample path is saved in CLAP/LV2 state and reloaded if the file is still
+  in place.
 
 The waveform shows the loaded file. The sample is loaded from disk at runtime;
 0.2.0 does not embed the audio in the plugin state yet, so a recalled session
@@ -150,20 +153,29 @@ The final safety stage is a lookahead limiter:
 
 ![Drum Suite — Limit](docs/limit.png)
 
-## Suggested ranges
+## Per-drum recommended settings
 
-Continuous knobs draw a translucent second arc outside the value marker: the
-same recommended-range language used by Vocal Suite. The ranges are deliberately
-broad drum-channel starting points (for example −32…−12 dB on the compressor
-primary control and 40…90 % on DeBleed), not hard limits.
+Each drum tab carries a complete guide for the whole strip, not just the gate:
+threshold and DeBleed, EQ moves and filters, compressor model and time
+constants, drive colour, clip shape, limiter ceiling and sample defaults. The
+guide is applied when you pick a drum, so a new mixer starts from a sensible
+Kick, Snare, Tom, Hat, Ride, Room, OH or Bus setup instead of a blank channel.
+
+The strip at the bottom of every page names the current target values. Active
+continuous knobs also show a translucent recommended arc plus a small gold
+target tick. If you change a module and want the starting point back, click
+**RECOMMENDED** in the header (or double-click a knob to return that parameter
+to the current drum's guide).
 
 ## Known limitations
 
-- The loaded sample is not embedded in the plugin state yet. The session keeps
-  the parameter state; reload the WAV after recall.
-- MIDI sample triggering and trigger offset are planned but not in 0.7.0.
-- The LV2 UI estimate for the limiter latency assumes 48 kHz; CLAP reports the
-  host rate.
+- The sample path is saved, not the audio. If the WAV moves or is deleted,
+  the slot recalls empty.
+- MIDI sample triggering responds to any note-on because 0.8 has one sample
+  slot.
+- Trigger offset is positive (0–10 ms); negative pre-trigger is not implemented.
+- After an LV2 state recall, the audio sample reloads, but the LV2 editor may
+  keep showing the previous sample name until it is reopened.
 
 ## Build
 
@@ -187,7 +199,8 @@ cmake --install build
 
 ## Status
 
-0.7.0 is a play-test and audit pass over the full chain:
+0.8.0 adds the recommended guide, sample persistence and MIDI/offset
+triggering:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
@@ -211,11 +224,20 @@ cmake --install build
   profiles now land within about 2 dB of the input level.
 - Power now bypasses the whole chain; True Peak actually switches between
   4× detection and sample peaks.
-- Tests: DSP, sample player/trigger modes, EQ response, compressor models,
-  drive, clipper, limiter, suggested ranges, full-chain rates, power bypass,
-  panel loading, layout, geometry and TTL.
+- Recommended button and per-page value bar, using the drum cheat-sheet
+  starting points.
+- Sample path saved in CLAP state and the LV2 state interface; reloaded on
+  recall.
+- MIDI sample trigger mode, any note-on.
+- 0–10 ms trigger offset and sample sensitivity.
+- Five full-chain factory presets.
+- Every page stays inside the meter rails; the Sample browser is shortened so
+  it no longer covers the global Input knob.
+- Tests: DSP, sample player/trigger modes/MIDI/offset, EQ, compressor, drive,
+  clipper, limiter, suggested ranges, state helpers, full-chain rates, power
+  bypass, recommended guide, panel loading, layout, geometry and TTL.
 
-Next: factory presets, sample-state persistence and release QA.
+Next: release QA.
 
 ## Licence
 

@@ -7,13 +7,17 @@
 #include <lv2/atom/atom.h>
 #include <lv2/atom/util.h>
 #include <lv2/midi/midi.h>
+#include <lv2/state/state.h>
 #include <lv2/urid/urid.h>
 
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "dsp/engine.hpp"
+#include "dsp/sample_io.hpp"
 #include "params.hpp"
 
 namespace {
@@ -41,6 +45,7 @@ enum Port : uint32_t {
   PORT_CLIP_ACTIVE,
   PORT_SAMPLE_VOICES,
   PORT_SAMPLE_ACTIVE,
+  PORT_SAMPLE_RATE,
   PORT_LATENCY,
   PORT_MIDI_IN,
   PORT_COUNT
@@ -74,10 +79,13 @@ struct Plugin {
   float* clipActive = nullptr;
   float* sampleVoices = nullptr;
   float* sampleActive = nullptr;
+  float* sampleRatePort = nullptr;
   float* latency = nullptr;
   LV2_Atom_Sequence* midiIn = nullptr;
   const LV2_URID_Map* map = nullptr;
   LV2_URID midiEventType = 0;
+  LV2_URID stateKey = 0;
+  LV2_URID chunkType = 0;
 };
 
 LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
@@ -92,6 +100,10 @@ LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
   }
   if (p->map) {
     p->midiEventType = p->map->map(p->map->handle, LV2_MIDI__MidiEvent);
+    p->stateKey =
+        p->map->map(p->map->handle,
+                    "https://github.com/tylorismusic-commits/drum-suite#state");
+    p->chunkType = p->map->map(p->map->handle, LV2_ATOM__Chunk);
   }
   p->engine.prepare(p->sampleRate);
   p->engine.setSample(p->shared.sample());
@@ -121,6 +133,7 @@ void connectPort(LV2_Handle handle, uint32_t port, void* data) {
     case PORT_CLIP_ACTIVE: p->clipActive = static_cast<float*>(data); break;
     case PORT_SAMPLE_VOICES: p->sampleVoices = static_cast<float*>(data); break;
     case PORT_SAMPLE_ACTIVE: p->sampleActive = static_cast<float*>(data); break;
+    case PORT_SAMPLE_RATE: p->sampleRatePort = static_cast<float*>(data); break;
     case PORT_LATENCY: p->latency = static_cast<float*>(data); break;
     case PORT_MIDI_IN: p->midiIn = static_cast<LV2_Atom_Sequence*>(data); break;
     default:
@@ -167,6 +180,7 @@ void run(LV2_Handle handle, uint32_t frames) {
       const auto* data = static_cast<const uint8_t*>(LV2_ATOM_BODY(&ev->body));
       const int status = data[0] & 0xf0;
       if (status == 0x90 && data[2] > 0) {
+        p->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
         const int ghostNote = static_cast<int>(p->shared.get(drum::P_GHOST_NOTE) + 0.5);
         if (data[1] == ghostNote) {
           p->shared.set(drum::P_GHOST, (data[2] / 127.0) * 100.0);
@@ -225,6 +239,7 @@ void run(LV2_Handle handle, uint32_t frames) {
   if (p->sampleActive)
     *p->sampleActive =
         (p->meters.sampleVoices > 0 || p->meters.sampleTriggered) ? 1.0f : 0.0f;
+  if (p->sampleRatePort) *p->sampleRatePort = p->sampleRate;
   if (p->latency) *p->latency = static_cast<float>(p->engine.latencySamples());
 
   const int head = p->shared.scopeHead.load(std::memory_order_relaxed) &
@@ -243,11 +258,99 @@ void run(LV2_Handle handle, uint32_t frames) {
                             std::memory_order_relaxed);
 }
 
+constexpr uint32_t kStateMagic = 0x44524D32;  // "DRM2"
+
+LV2_State_Status stateSave(LV2_Handle handle,
+                           LV2_State_Store_Function store,
+                           LV2_State_Handle state, uint32_t,
+                           const LV2_Feature* const*) {
+  auto* p = static_cast<Plugin*>(handle);
+  if (!p->chunkType) return LV2_STATE_ERR_NO_FEATURE;
+  const auto sample = p->shared.sample();
+  const std::string path = sample ? sample->path : std::string();
+  const uint32_t pathSize = static_cast<uint32_t>(path.size());
+  std::vector<uint8_t> blob(sizeof(uint32_t) * 2 +
+                            sizeof(double) * drum::P_COUNT +
+                            sizeof(uint32_t) + path.size());
+  size_t off = 0;
+  auto put = [&](const void* data, size_t size) {
+    std::memcpy(blob.data() + off, data, size);
+    off += size;
+  };
+  put(&kStateMagic, sizeof(kStateMagic));
+  const uint32_t count = drum::P_COUNT;
+  put(&count, sizeof(count));
+  double values[drum::P_COUNT];
+  for (uint32_t i = 0; i < drum::P_COUNT; ++i) values[i] = p->shared.get(i);
+  put(values, sizeof(values));
+  put(&pathSize, sizeof(pathSize));
+  if (pathSize > 0) put(path.data(), path.size());
+  store(state, p->stateKey, blob.data(), blob.size(), p->chunkType,
+        LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+  return LV2_STATE_SUCCESS;
+}
+
+LV2_State_Status stateRestore(LV2_Handle handle,
+                              LV2_State_Retrieve_Function retrieve,
+                              LV2_State_Handle state, uint32_t,
+                              const LV2_Feature* const*) {
+  auto* p = static_cast<Plugin*>(handle);
+  uint32_t type = 0, flags = 0;
+  size_t size = 0;
+  const void* data = retrieve(state, p->stateKey, &size, &type, &flags);
+  if (!data) return LV2_STATE_SUCCESS;
+  if (type != p->chunkType ||
+      size < sizeof(uint32_t) * 2 + sizeof(uint32_t)) {
+    return LV2_STATE_ERR_BAD_TYPE;
+  }
+  const uint8_t* bytes = static_cast<const uint8_t*>(data);
+  size_t off = 0;
+  uint32_t magic = 0;
+  std::memcpy(&magic, bytes, sizeof(magic));
+  off += sizeof(magic);
+  if (magic != kStateMagic) return LV2_STATE_ERR_BAD_TYPE;
+  uint32_t count = 0;
+  std::memcpy(&count, bytes + off, sizeof(count));
+  off += sizeof(count);
+  if (count > 1024 ||
+      size < sizeof(uint32_t) * 2 + sizeof(double) * count + sizeof(uint32_t)) {
+    return LV2_STATE_ERR_BAD_TYPE;
+  }
+  const uint32_t limit = std::min(count, static_cast<uint32_t>(drum::P_COUNT));
+  for (uint32_t i = 0; i < count; ++i) {
+    double v = 0.0;
+    std::memcpy(&v, bytes + off, sizeof(v));
+    off += sizeof(v);
+    if (i < limit) p->shared.setFromHost(i, v);
+  }
+  uint32_t pathSize = 0;
+  std::memcpy(&pathSize, bytes + off, sizeof(pathSize));
+  off += sizeof(pathSize);
+  if (pathSize == 0 || pathSize > 4096 || off + pathSize > size) {
+    p->shared.setSample(nullptr);
+    return LV2_STATE_SUCCESS;
+  }
+  const std::string path(reinterpret_cast<const char*>(bytes + off), pathSize);
+  auto sample = drum::loadSampleFile(path);
+  if (!sample) p->shared.setFromHost(drum::P_SAMPLE_ON, 0.0);
+  p->shared.setSample(std::move(sample));
+  return LV2_STATE_SUCCESS;
+}
+
+const LV2_State_Interface kStateInterface = {stateSave, stateRestore};
+
+const void* extensionData(const char* uri) {
+  if (uri && !std::strcmp(uri, LV2_STATE__interface)) {
+    return &kStateInterface;
+  }
+  return nullptr;
+}
+
 void cleanup(LV2_Handle handle) { delete static_cast<Plugin*>(handle); }
 
 const LV2_Descriptor kDescriptor = {
     kPluginUri, instantiate, connectPort, activate, run, deactivate,
-    cleanup, nullptr};
+    cleanup, extensionData};
 
 } // namespace
 

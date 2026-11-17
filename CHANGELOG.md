@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.8.0 — 2026-11-17
+
+- Added the RECOMMENDED button and per-page recommended-value bar. Values
+  follow a rock/metal drum cheat sheet (Hardcore Music Studio-style): 4:1, 3-6 dB GR, fast/medium attack,
+  100-300 ms release and drum-specific HPF/tone ranges.
+- Sample path is saved in CLAP state and the new LV2 state interface, and is
+  reloaded when the preset/project is recalled.
+- MIDI trigger mode; any note-on fires the sample.
+- 0–10 ms trigger offset.
+- Five full-chain factory presets.
+- Sample browser shortened and Sample On moved so the browser no longer covers
+  the global Input knob and the info line is unobstructed.
+- LV2 UI receives the host sample rate for the EQ curve and latency display.
+- State formats are versioned for future parameter additions.
+- Fixed compressor ratio/attack/release display in the guide.
+
+## Unreleased
+
+- Complete per-drum recommendations for gate, EQ, compressor, drive, clip,
+  limiter and sample controls.
+- Added a per-drum guide strip on every page, target markers on knobs, and a
+  header RECOMMENDED button to restore the current drum's guide.
+- Double-click now resets a knob to the selected drum's guide.
+
 ## 0.7.0 — 2026-11-17
 
 - Audit pass over every module with a real snare loop.

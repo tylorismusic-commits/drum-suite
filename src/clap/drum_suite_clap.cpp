@@ -20,9 +20,11 @@
 #include <functional>
 #include <mutex>
 #include <string>
+#include <vector>
 #include <thread>
 
 #include "dsp/engine.hpp"
+#include "dsp/sample_io.hpp"
 #include "params.hpp"
 #include "value_text.hpp"
 #include "version.hpp"
@@ -360,6 +362,10 @@ struct Plugin {
   std::atomic<bool> active{false};
 };
 
+const char* const kFeatures[] = {CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
+                                 CLAP_PLUGIN_FEATURE_GATE,
+                                 CLAP_PLUGIN_FEATURE_STEREO, nullptr};
+
 const clap_plugin_descriptor_t kDescriptor = {
     CLAP_VERSION,
     kPluginId,
@@ -370,12 +376,8 @@ const clap_plugin_descriptor_t kDescriptor = {
     "",
     kVersion,
     "Drum channel strip: Bleed Out, sample, EQ, compressor, drive, clip and limiter.",
-    nullptr,
+    kFeatures,
 };
-
-const char* const kFeatures[] = {CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
-                                 CLAP_PLUGIN_FEATURE_GATE,
-                                 CLAP_PLUGIN_FEATURE_STEREO, nullptr};
 
 void writeName(char* dst, size_t size, const char* src) {
   std::strncpy(dst, src, size - 1);
@@ -465,6 +467,9 @@ void applyEvents(Plugin* s, const clap_input_events_t* in) {
     } else if (hdr->type == CLAP_EVENT_NOTE_ON) {
       const auto* n = reinterpret_cast<const clap_event_note_t*>(hdr);
       const int ghostNote = static_cast<int>(s->shared.get(P_GHOST_NOTE) + 0.5);
+      if (std::isfinite(n->velocity) && n->velocity > 0.0) {
+        s->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
+      }
       if (n->key == ghostNote && std::isfinite(n->velocity) && n->velocity > 0.0) {
         s->shared.set(P_GHOST, n->velocity * 100.0);
         s->shared.midiGhostTrigger.fetch_add(1, std::memory_order_relaxed);
@@ -473,6 +478,7 @@ void applyEvents(Plugin* s, const clap_input_events_t* in) {
       const auto* m = reinterpret_cast<const clap_event_midi_t*>(hdr);
       const int status = m->data[0] & 0xf0;
       if (status == 0x90 && m->data[2] > 0) {
+        s->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
         const int ghostNote = static_cast<int>(s->shared.get(P_GHOST_NOTE) + 0.5);
         if (m->data[1] == ghostNote) {
           s->shared.set(P_GHOST, (m->data[2] / 127.0) * 100.0);
@@ -530,35 +536,88 @@ const clap_plugin_params_t kParamsExt = {
 
 // --- State ------------------------------------------------------------------
 
+bool writeAll(const clap_ostream_t* stream, const void* data, size_t size) {
+  const char* p = static_cast<const char*>(data);
+  while (size > 0) {
+    const int64_t n = stream->write(stream, p, size);
+    if (n <= 0) return false;
+    p += n;
+    size -= static_cast<size_t>(n);
+  }
+  return true;
+}
+
+bool readAll(const clap_istream_t* stream, void* data, size_t size) {
+  char* p = static_cast<char*>(data);
+  while (size > 0) {
+    const int64_t n = stream->read(stream, p, size);
+    if (n <= 0) return false;
+    p += n;
+    size -= static_cast<size_t>(n);
+  }
+  return true;
+}
+
+constexpr uint32_t kStateMagic = 0x44525332;  // "DRS2"
+
 bool stateSave(const clap_plugin_t* p, const clap_ostream_t* stream) {
   Plugin* s = self(p);
   double values[P_COUNT];
   for (uint32_t i = 0; i < P_COUNT; ++i) {
     values[i] = s->shared.get(i);
   }
+  const uint32_t count = P_COUNT;
   const double scale = s->editor.scale();
-  const int64_t written = stream->write(stream, values, sizeof(values));
-  const int64_t writtenScale = stream->write(stream, &scale, sizeof(scale));
-  return written == static_cast<int64_t>(sizeof(values)) &&
-         writtenScale == static_cast<int64_t>(sizeof(scale));
+  const auto sample = s->shared.sample();
+  const std::string path = sample ? sample->path : std::string();
+  const uint32_t pathSize = static_cast<uint32_t>(path.size());
+  return writeAll(stream, &kStateMagic, sizeof(kStateMagic)) &&
+         writeAll(stream, &count, sizeof(count)) &&
+         writeAll(stream, values, sizeof(values)) &&
+         writeAll(stream, &scale, sizeof(scale)) &&
+         writeAll(stream, &pathSize, sizeof(pathSize)) &&
+         (path.empty() || writeAll(stream, path.data(), path.size()));
 }
 
 bool stateLoad(const clap_plugin_t* p, const clap_istream_t* stream) {
   Plugin* s = self(p);
-  double values[P_COUNT];
-  const int64_t got = stream->read(stream, values, sizeof(values));
-  if (got != static_cast<int64_t>(sizeof(values))) {
+  uint32_t magic = 0;
+  uint32_t count = 0;
+  if (!readAll(stream, &magic, sizeof(magic)) ||
+      !readAll(stream, &count, sizeof(count)) || magic != kStateMagic ||
+      count > 1024) {
     return false;
   }
-  for (uint32_t i = 0; i < P_COUNT; ++i) {
+  std::vector<double> values(count, 0.0);
+  if (count > 0 && !readAll(stream, values.data(), sizeof(double) * count)) {
+    return false;
+  }
+  const uint32_t limit = std::min(count, static_cast<uint32_t>(P_COUNT));
+  for (uint32_t i = 0; i < limit; ++i) {
     s->shared.setFromHost(i, values[i]);
   }
-  // The UI scale is optional, so states saved before it still load.
+  // The UI scale and sample path are optional, so older states still load.
   double scale = 0.0;
-  if (stream->read(stream, &scale, sizeof(scale)) == static_cast<int64_t>(sizeof(scale)) &&
+  if (stream->read(stream, &scale, sizeof(scale)) ==
+          static_cast<int64_t>(sizeof(scale)) &&
       scale > 0.0) {
     s->editor.resize(scale);
   }
+  uint32_t pathSize = 0;
+  if (stream->read(stream, &pathSize, sizeof(pathSize)) !=
+          static_cast<int64_t>(sizeof(pathSize)) ||
+      pathSize == 0 || pathSize > 4096) {
+    s->shared.setSample(nullptr);
+    return true;
+  }
+  std::string path(pathSize, '\0');
+  if (!readAll(stream, path.data(), path.size())) {
+    s->shared.setSample(nullptr);
+    return true;
+  }
+  auto sample = loadSampleFile(path);
+  if (!sample) s->shared.setFromHost(P_SAMPLE_ON, 0.0);
+  s->shared.setSample(std::move(sample));
   return true;
 }
 

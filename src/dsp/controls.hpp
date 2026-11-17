@@ -131,14 +131,78 @@ inline constexpr ClipDefaults kClipDefaults[8] = {
 };
 
 inline constexpr CompDefaults kCompDefaults[8] = {
-    {0, -20.0f, 4.0f, 0.25f, 0.35f, 0.80f, 1.00f, 0.05f},  // Kick
-    {0, -22.0f, 5.0f, 0.15f, 0.40f, 0.80f, 0.90f, 0.25f},  // Snare
-    {0, -20.0f, 4.0f, 0.30f, 0.45f, 0.80f, 0.90f, 0.20f},  // Tom
-    {1, -18.0f, 2.0f, 0.50f, 0.50f, 0.40f, 0.70f, 0.60f},  // Hat
-    {1, -18.0f, 2.0f, 0.50f, 0.50f, 0.40f, 0.70f, 0.60f},  // Ride
-    {2, -14.0f, 3.0f, 0.35f, 0.55f, 0.42f, 1.00f, 0.65f},  // Room
-    {2, -16.0f, 3.0f, 0.30f, 0.50f, 0.45f, 0.90f, 0.55f},  // OH
-    {2, -12.0f, 4.0f, 0.40f, 0.60f, 0.38f, 1.00f, 0.70f},  // Bus
+    {0, -14.0f, 3.0f, 0.25f, 0.35f, 0.80f, 1.00f, 0.05f},  // Kick
+    {0, -16.0f, 3.0f, 0.15f, 0.40f, 0.80f, 0.90f, 0.25f},  // Snare
+    {0, -18.0f, 3.0f, 0.30f, 0.45f, 0.80f, 0.90f, 0.20f},  // Tom
+    {1, -20.0f, 2.0f, 0.50f, 0.50f, 0.40f, 0.70f, 0.60f},  // Hat
+    {1, -20.0f, 2.0f, 0.50f, 0.50f, 0.40f, 0.70f, 0.60f},  // Ride
+    {2, -20.0f, 3.0f, 0.85f, 0.35f, 0.42f, 1.00f, 0.65f},  // Room
+    {2, -22.0f, 3.0f, 0.82f, 0.40f, 0.45f, 0.90f, 0.55f},  // OH
+    {2, -20.0f, 3.0f, 0.80f, 0.30f, 0.40f, 1.00f, 0.70f},  // Bus
+};
+
+
+struct EqDefaults {
+  float low;
+  float lowMid;
+  float highMid;
+  float high;
+  float hpf;
+  float lpf;
+};
+
+inline constexpr EqDefaults kEqDefaults[8] = {
+    // Kick, snare, tom, hat, ride, room, OH, bus.  Starting points follow the
+    // usual rock/metal drum cheat-sheet ranges: kick 30-60 Hz HPF and 3-5 kHz
+    // click, snare 80-120 Hz HPF and 4-6 kHz crack, cymbals 180-300 Hz HPF.
+    {0.60f, 0.45f, 0.55f, 0.57f, 0.14f, 0.98f},  // Kick
+    {0.47f, 0.58f, 0.60f, 0.63f, 0.42f, 1.00f},  // Snare
+    {0.58f, 0.54f, 0.48f, 0.53f, 0.28f, 0.98f},  // Tom
+    {0.40f, 0.42f, 0.54f, 0.63f, 0.72f, 1.00f},  // Hat
+    {0.42f, 0.45f, 0.53f, 0.58f, 0.65f, 1.00f},  // Ride
+    {0.52f, 0.49f, 0.54f, 0.58f, 0.40f, 0.97f},  // Room
+    {0.46f, 0.47f, 0.53f, 0.60f, 0.45f, 1.00f},  // OH
+    {0.52f, 0.50f, 0.51f, 0.54f, 0.05f, 0.95f},  // Bus
+};
+
+struct LimitDefaults {
+  float ceiling;
+  float release;
+  float lookahead;
+  float mix;
+};
+
+inline constexpr LimitDefaults kLimitDefaults[8] = {
+    {0.967f, 0.45f, 0.35f, 1.0f},  // Kick
+    {0.967f, 0.40f, 0.30f, 1.0f},  // Snare
+    {0.970f, 0.50f, 0.40f, 1.0f},  // Tom
+    {0.980f, 0.30f, 0.20f, 1.0f},  // Hat
+    {0.980f, 0.35f, 0.25f, 1.0f},  // Ride
+    {0.970f, 0.55f, 0.50f, 1.0f},  // Room
+    {0.970f, 0.50f, 0.45f, 1.0f},  // OH
+    {0.950f, 0.60f, 0.50f, 1.0f},  // Bus
+};
+
+struct SampleDefaults {
+  float level;
+  float direct;
+  float pitch;
+  float start;
+  float fadeMs;
+  float sensitivity;
+  float offsetMs;
+  int trigger;
+};
+
+inline constexpr SampleDefaults kSampleDefaults[8] = {
+    {85.0f, 100.0f, 0.0f, 0.0f, 2.0f, 0.50f, 0.0f, 0},  // Kick
+    {85.0f, 100.0f, 0.0f, 0.0f, 1.0f, 0.55f, 0.0f, 0},  // Snare
+    {80.0f, 100.0f, 0.0f, 0.0f, 4.0f, 0.50f, 0.0f, 0},  // Tom
+    {75.0f, 100.0f, 0.0f, 0.0f, 1.0f, 0.60f, 0.0f, 0},  // Hat
+    {75.0f, 100.0f, 0.0f, 0.0f, 1.0f, 0.55f, 0.0f, 0},  // Ride
+    {70.0f, 100.0f, 0.0f, 0.0f, 10.0f, 0.50f, 0.0f, 0}, // Room
+    {70.0f, 100.0f, 0.0f, 0.0f, 10.0f, 0.50f, 0.0f, 0}, // OH
+    {70.0f, 100.0f, 0.0f, 0.0f, 5.0f, 0.50f, 0.0f, 0},  // Bus
 };
 
 inline float eqHpfHz(float v) noexcept {
@@ -157,6 +221,7 @@ struct SampleBuffer {
   std::vector<float> data;
   int sampleRate = 48000;
   std::string name;
+  std::string path;
 };
 
 struct Controls {
@@ -174,24 +239,24 @@ struct Controls {
   // Ghost note mode.  The amount is user/MIDI controlled; the ghost detector
   // itself is profile-aware.
   bool ghostMode = false;
-  float ghost = 75.0f;
+  float ghost = 50.0f;
   int ghostNote = 38;
   int ghostCc = 74;
   int ghostTrigger = 0;
 
   // EQ.
-  float eqLow = 0.5f;
-  float eqLowMid = 0.5f;
-  float eqHighMid = 0.5f;
-  float eqHigh = 0.5f;
-  float eqHpf = 0.0f;
-  float eqLpf = 1.0f;
+  float eqLow = 0.60f;
+  float eqLowMid = 0.45f;
+  float eqHighMid = 0.55f;
+  float eqHigh = 0.57f;
+  float eqHpf = 0.14f;
+  float eqLpf = 0.98f;
 
   // Compressor.
   bool compOn = true;
   int compModel = 0;  // 0 76, 1 2A, 2 VCA
-  float compThresholdDb = -20.0f;
-  float compRatio = 4.0f;   // 0..8 ladder
+  float compThresholdDb = -14.0f;
+  float compRatio = 3.0f;   // 0..8 ladder
   float compAttack = 0.3f;  // 0..1
   float compRelease = 0.5f; // 0..1
   float compMakeup = 0.8f;  // 0.5 = unity
@@ -219,8 +284,8 @@ struct Controls {
   // Limiter.
   bool limitOn = true;
   float limitCeiling = 0.967f;   // about -0.4 dB
-  float limitRelease = 0.5f;
-  float limitLookahead = 0.4f;
+  float limitRelease = 0.45f;
+  float limitLookahead = 0.35f;
   bool limitTruePeak = true;
   float limitMix = 1.0f;
 
@@ -233,8 +298,10 @@ struct Controls {
   bool sampleReverse = false;
   bool sampleChoke = true;
   float sampleFadeMs = 3.0f;    // 0..500
-  int sampleTrigger = 0;        // 0 Gate, 1 Transient, 2 Always
+  int sampleTrigger = 0;        // 0 Gate, 1 Transient, 2 Always, 3 MIDI
   float sampleSensitivity = 0.5f;
+  float sampleOffsetMs = 0.0f;
+  int sampleMidiTrigger = 0;
 };
 
 struct Meters {

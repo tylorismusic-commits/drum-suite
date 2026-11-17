@@ -71,6 +71,7 @@ int main(int argc, char** argv) {
   auto render = [&](int drum, bool ghost, int page, const char* name) {
     Shared shared;
     shared.set(P_DRUM, drum);
+    applyDrumDefaults(shared, drum);
     shared.set(P_GHOST_MODE, ghost ? 1 : 0);
     shared.set(P_GHOST, 80);
     shared.inPeakLDb.store(-8.0f);
