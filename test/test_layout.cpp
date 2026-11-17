@@ -38,38 +38,43 @@ int main() {
   Shared shared;
   panel.loadFont("assets/fonts");
 
-  for (int drum = 0; drum < kDrumCount; ++drum) {
-    PanelState state;
-    shared.set(P_DRUM, static_cast<double>(drum));
-    panel.draw(cr, shared, state);
-    const std::vector<Panel::WidgetRect> rects = panel.widgetRects();
+  for (int page = 0; page < 7; ++page) {
+    for (int drum = 0; drum < kDrumCount; ++drum) {
+      PanelState state;
+      state.page = page;
+      shared.set(P_DRUM, static_cast<double>(drum));
+      panel.draw(cr, shared, state);
+      const std::vector<Panel::WidgetRect> rects = panel.widgetRects();
 
-    bool onPlate = true;
-    for (const auto& r : rects) {
-      if (r.w <= 0.0 || r.h <= 0.0 || r.y < kPlateY) continue;
-      if (r.x < kPlateX - 0.5 || r.y < kPlateY - 0.5 ||
-          r.x + r.w > kPlateX + kPlateW + 0.5 ||
-          r.y + r.h > kPlateY + kPlateH + 0.5) {
-        std::printf("  drum %d: '%s' at %.0f,%.0f %.0fx%.0f is off plate\n",
-                    drum, r.label, r.x, r.y, r.w, r.h);
-        onPlate = false;
+      bool onPlate = true;
+      for (const auto& r : rects) {
+        if (r.w <= 0.0 || r.h <= 0.0 || r.y < kPlateY) continue;
+        if (r.x < kPlateX - 0.5 || r.y < kPlateY - 0.5 ||
+            r.x + r.w > kPlateX + kPlateW + 0.5 ||
+            r.y + r.h > kPlateY + kPlateH + 0.5) {
+          std::printf("  page %d drum %d: '%s' at %.0f,%.0f %.0fx%.0f is off plate\n",
+                      page, drum, r.label, r.x, r.y, r.w, r.h);
+          onPlate = false;
+        }
       }
-    }
-    char label[128];
-    std::snprintf(label, sizeof(label), "drum %d controls sit on the plate", drum);
-    check(onPlate, label);
+      char label[128];
+      std::snprintf(label, sizeof(label), "page %d drum %d controls sit on the plate",
+                    page, drum);
+      check(onPlate, label);
 
-    bool clean = true;
-    for (size_t i = 0; i < rects.size(); ++i) {
-      for (size_t j = i + 1; j < rects.size(); ++j) {
-        if (!overlaps(rects[i], rects[j])) continue;
-        std::printf("  drum %d: '%s' overlaps '%s'\n", drum, rects[i].label,
-                    rects[j].label);
-        clean = false;
+      bool clean = true;
+      for (size_t i = 0; i < rects.size(); ++i) {
+        for (size_t j = i + 1; j < rects.size(); ++j) {
+          if (!overlaps(rects[i], rects[j])) continue;
+          std::printf("  page %d drum %d: '%s' overlaps '%s'\n", page, drum,
+                      rects[i].label, rects[j].label);
+          clean = false;
+        }
       }
+      std::snprintf(label, sizeof(label), "page %d drum %d controls do not overlap",
+                    page, drum);
+      check(clean, label);
     }
-    std::snprintf(label, sizeof(label), "drum %d controls do not overlap", drum);
-    check(clean, label);
   }
 
   cairo_destroy(cr);

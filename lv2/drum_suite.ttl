@@ -24,7 +24,7 @@
     ] ;
     doap:homepage <https://github.com/tylorismusic-commits/drum-suite> ;
     lv2:majorVersion 0 ;
-    lv2:minorVersion 1 ;
+    lv2:minorVersion 2 ;
     lv2:microVersion 0 ;
     lv2:binary <drum_suite.so> ;
     rdfs:seeAlso <manifest.ttl> ;
@@ -201,8 +201,179 @@
         pg:group <https://github.com/tylorismusic-commits/drum-suite#midi> ;
     ] ,
     [
-        a lv2:OutputPort , lv2:ControlPort ;
+        a lv2:InputPort , lv2:ControlPort ;
         lv2:index 16 ;
+        lv2:symbol "sample_on" ;
+        lv2:name "Sample" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:toggled true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 17 ;
+        lv2:symbol "sample_level" ;
+        lv2:name "Sample Level" ;
+        lv2:default 80 ;
+        lv2:minimum 0 ;
+        lv2:maximum 100 ;
+        units:unit units:% ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 18 ;
+        lv2:symbol "sample_direct" ;
+        lv2:name "Direct" ;
+        lv2:default 100 ;
+        lv2:minimum 0 ;
+        lv2:maximum 100 ;
+        units:unit units:% ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 19 ;
+        lv2:symbol "sample_pitch" ;
+        lv2:name "Pitch" ;
+        lv2:default 0 ;
+        lv2:minimum -24 ;
+        lv2:maximum 24 ;
+        units:unit units:st ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 20 ;
+        lv2:symbol "sample_start" ;
+        lv2:name "Start" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 100 ;
+        units:unit units:% ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 21 ;
+        lv2:symbol "sample_reverse" ;
+        lv2:name "Reverse" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:toggled true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 22 ;
+        lv2:symbol "sample_choke" ;
+        lv2:name "Choke" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:toggled true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 23 ;
+        lv2:symbol "sample_fade" ;
+        lv2:name "Fade" ;
+        lv2:default 3 ;
+        lv2:minimum 0 ;
+        lv2:maximum 500 ;
+        units:unit units:ms ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 24 ;
+        lv2:symbol "sample_trigger" ;
+        lv2:name "Trigger" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
+        lv2:integer true ;
+        lv2:scalePoint [ rdf:value 0 ; rdfs:label "Gate" ] ,
+            [ rdf:value 1 ; rdfs:label "Transient" ] ,
+            [ rdf:value 2 ; rdfs:label "Always" ] ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 25 ;
+        lv2:symbol "eq_low" ;
+        lv2:name "Low" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:dB ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 26 ;
+        lv2:symbol "eq_low_mid" ;
+        lv2:name "Low Mid" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:dB ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 27 ;
+        lv2:symbol "eq_high_mid" ;
+        lv2:name "High Mid" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:dB ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 28 ;
+        lv2:symbol "eq_high" ;
+        lv2:name "High" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:dB ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 29 ;
+        lv2:symbol "eq_hpf" ;
+        lv2:name "HPF" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:Hz ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 30 ;
+        lv2:symbol "eq_lpf" ;
+        lv2:name "LPF" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:Hz ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 31 ;
         lv2:symbol "in_peak_l" ;
         lv2:name "Input Peak Left" ;
         lv2:default 0 ;
@@ -214,7 +385,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 17 ;
+        lv2:index 32 ;
         lv2:symbol "in_peak_r" ;
         lv2:name "Input Peak Right" ;
         lv2:default 0 ;
@@ -226,7 +397,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 18 ;
+        lv2:index 33 ;
         lv2:symbol "out_peak_l" ;
         lv2:name "Output Peak Left" ;
         lv2:default 0 ;
@@ -238,7 +409,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 19 ;
+        lv2:index 34 ;
         lv2:symbol "out_peak_r" ;
         lv2:name "Output Peak Right" ;
         lv2:default 0 ;
@@ -250,7 +421,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 20 ;
+        lv2:index 35 ;
         lv2:symbol "in_peak" ;
         lv2:name "Input Peak" ;
         lv2:default 0 ;
@@ -262,7 +433,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 21 ;
+        lv2:index 36 ;
         lv2:symbol "out_peak" ;
         lv2:name "Output Peak" ;
         lv2:default 0 ;
@@ -274,7 +445,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 22 ;
+        lv2:index 37 ;
         lv2:symbol "gr" ;
         lv2:name "Gain Reduction" ;
         lv2:default 0 ;
@@ -286,7 +457,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 23 ;
+        lv2:index 38 ;
         lv2:symbol "detector" ;
         lv2:name "Detector" ;
         lv2:default 0 ;
@@ -298,7 +469,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 24 ;
+        lv2:index 39 ;
         lv2:symbol "gate" ;
         lv2:name "Gate" ;
         lv2:default 1 ;
@@ -309,7 +480,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 25 ;
+        lv2:index 40 ;
         lv2:symbol "ghost_active" ;
         lv2:name "Ghost Active" ;
         lv2:default 0 ;
@@ -321,7 +492,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 26 ;
+        lv2:index 41 ;
         lv2:symbol "latency" ;
         lv2:name "Latency" ;
         lv2:default 0 ;
@@ -333,7 +504,7 @@
     ] ,
     [
         a atom:AtomPort , lv2:InputPort ;
-        lv2:index 27 ;
+        lv2:index 42 ;
         lv2:symbol "midi_in" ;
         lv2:name "MIDI In" ;
         atom:bufferType atom:Sequence ;
@@ -351,6 +522,10 @@
 <https://github.com/tylorismusic-commits/drum-suite#ghost> a pg:Group ; lv2:name "Ghost" .
 
 <https://github.com/tylorismusic-commits/drum-suite#midi> a pg:Group ; lv2:name "MIDI" .
+
+<https://github.com/tylorismusic-commits/drum-suite#sample> a pg:Group ; lv2:name "Sample" .
+
+<https://github.com/tylorismusic-commits/drum-suite#eq> a pg:Group ; lv2:name "EQ" .
 
 <https://github.com/tylorismusic-commits/drum-suite#meter> a pg:Group ; lv2:name "Meter" .
 

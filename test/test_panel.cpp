@@ -4,8 +4,13 @@
 #include <cairo.h>
 
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <vector>
 
 #include "params.hpp"
 #include "presets.hpp"
@@ -19,6 +24,44 @@ int gFailures = 0;
 void check(bool ok, const char* what) {
   std::printf("%s  %s\n", ok ? "PASS" : "FAIL", what);
   if (!ok) ++gFailures;
+}
+
+void put32(std::ofstream& f, uint32_t v) {
+  const char b[4] = {static_cast<char>(v & 0xff),
+                     static_cast<char>((v >> 8) & 0xff),
+                     static_cast<char>((v >> 16) & 0xff),
+                     static_cast<char>((v >> 24) & 0xff)};
+  f.write(b, 4);
+}
+
+void put16(std::ofstream& f, uint16_t v) {
+  const char b[2] = {static_cast<char>(v & 0xff),
+                     static_cast<char>((v >> 8) & 0xff)};
+  f.write(b, 2);
+}
+
+void writeTestWav(const std::filesystem::path& path) {
+  const int sr = 48000;
+  const int n = 4800;
+  std::ofstream f(path, std::ios::binary);
+  f.write("RIFF", 4);
+  put32(f, 36 + n * 2);
+  f.write("WAVEfmt ", 8);
+  put32(f, 16);
+  put16(f, 1);
+  put16(f, 1);
+  put32(f, sr);
+  put32(f, sr * 2);
+  put16(f, 2);
+  put16(f, 16);
+  f.write("data", 4);
+  put32(f, n * 2);
+  for (int i = 0; i < n; ++i) {
+    const double t = static_cast<double>(i) / sr;
+    const double env = std::exp(-t * 18.0);
+    const double v = 0.55 * env * std::sin(2.0 * 3.14159265358979 * 180.0 * t);
+    put16(f, static_cast<uint16_t>(static_cast<int16_t>(v * 32767.0)));
+  }
 }
 } // namespace
 
@@ -68,6 +111,31 @@ int main() {
   }
 
   {
+    const std::filesystem::path root = "/tmp/opencode/drum_panel_test";
+    std::error_code ec;
+    std::filesystem::remove_all(root, ec);
+    std::filesystem::create_directories(root / "drum-suite/samples", ec);
+    writeTestWav(root / "drum-suite/samples/TestHit.wav");
+    setenv("XDG_DATA_HOME", root.c_str(), 1);
+
+    Shared shared;
+    Panel panel;
+    PanelState state;
+    panel.draw(cr, shared, state);
+    panel.tick(shared, state);
+    check(state.sampleFiles.size() == 1 && state.sampleFiles[0] == "TestHit.wav",
+          "sample folder scan finds WAV files");
+    state.page = 1;
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 100, 240, false);
+    panel.pointerUp();
+    check(shared.sample() != nullptr, "clicking a sample row loads it");
+    check(shared.sample() && shared.sample()->data.size() == 4800,
+          "loaded sample keeps its length");
+    check(shared.get(P_SAMPLE_ON) > 0.5, "loading a sample enables the layer");
+  }
+
+  {
     Shared shared;
     Panel panel;
     PanelState state;
@@ -106,6 +174,12 @@ int main() {
     check(parseParamValue(shared, P_DRUM, "Snare", &v) &&
               std::fabs(v - 1.0) < 1e-9,
           "typed drum accepts Snare");
+    check(parseParamValue(shared, P_EQ_LOW, "+6 dB", &v) &&
+              std::fabs(v - 0.75) < 1e-9,
+          "typed EQ gain accepts +6 dB");
+    check(parseParamValue(shared, P_EQ_LPF, "10000 Hz", &v) &&
+              std::fabs(eqLpfHz(static_cast<float>(v)) - 10000.0) < 2.0,
+          "typed LPF accepts 10 kHz");
   }
 
   cairo_destroy(cr);

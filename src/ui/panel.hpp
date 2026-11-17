@@ -4,6 +4,7 @@
 
 #include <cairo.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,9 @@ struct PanelState {
   bool ghostActive = false;
   float scopeIn[Shared::kScopeSize] = {};
   float scopeGate[Shared::kScopeSize] = {};
+  std::vector<std::string> sampleFiles;
+  int sampleScroll = 0;
+  int sampleScanTicks = 60;
 };
 
 class Panel {
@@ -110,6 +114,14 @@ private:
                   const PanelState& state) const;
   void drawBody(cairo_t* cr, int drum, int page) const;
   void drawPlaceholderPage(cairo_t* cr, int page) const;
+  void drawSamplePage(cairo_t* cr, const Shared& shared,
+                      const PanelState& state) const;
+  void drawEqPage(cairo_t* cr, const Shared& shared,
+                  const PanelState& state) const;
+  void updateWaveCache(const std::shared_ptr<const SampleBuffer>& sample,
+                       int cols) const;
+  bool loadSample(Shared& shared, PanelState& state,
+                  const std::string& path) const;
   void drawScope(cairo_t* cr, const Shared& shared,
                  const PanelState& state) const;
   void drawLevelMeter(cairo_t* cr, double x, double y, double w, double h,
@@ -131,6 +143,10 @@ private:
   double presetResetValue(const PanelState& state, uint32_t param) const;
 
   std::vector<Widget> widgets_;
+  mutable std::shared_ptr<const SampleBuffer> waveSample_;
+  mutable int waveWidth_ = 0;
+  mutable std::vector<float> waveMin_;
+  mutable std::vector<float> waveMax_;
   int dragParam_ = -1;
   int dragSteps_ = 0;
   double dragStartY_ = 0.0;

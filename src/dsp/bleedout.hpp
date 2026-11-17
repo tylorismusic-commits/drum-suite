@@ -117,6 +117,8 @@ public:
     ghostHold_ = 0;
     midiGhostHold_ = 0;
     gateOpen_ = false;
+    triggerPrev_ = false;
+    ghostTriggerPrev_ = false;
     bodyWasHot_ = false;
     mainWasHot_ = false;
     envDet_ = 0.0f;
@@ -130,7 +132,8 @@ public:
     output_.snap();
   }
 
-  void process(float* left, float* right, int frames, Meters& meters) noexcept {
+  void process(float* left, float* right, int frames, Meters& meters,
+               uint8_t* trigger = nullptr) noexcept {
     float inPeakL = 0.0f, inPeakR = 0.0f;
     float outPeakL = 0.0f, outPeakR = 0.0f;
     float grMax = 0.0f;
@@ -189,6 +192,8 @@ public:
       }
       if (hold_ > 0) --hold_;
       const bool target = controls_.gateOn && (gateOpen_ || hold_ > 0);
+      if (trigger && target && !triggerPrev_) trigger[i] = 1;
+      triggerPrev_ = target;
       gateEnv_ += (target ? (1.0f - gateEnv_) : (0.0f - gateEnv_)) *
                   (target ? attackCoef_ : releaseCoef_);
       gateEnv_ = flushDenormal(gateEnv_);
@@ -229,6 +234,8 @@ public:
           ghostSeen = true;
         }
       }
+      if (trigger && ghostOpen && !ghostTriggerPrev_) trigger[i] = 1;
+      ghostTriggerPrev_ = ghostOpen;
       if (ghostHold_ > 0) --ghostHold_;
       if (midiGhostHold_ > 0) {
         --midiGhostHold_;
@@ -346,6 +353,8 @@ private:
   int holdSamples_ = 0;
   int hold_ = 0;
   bool gateOpen_ = false;
+  bool triggerPrev_ = false;
+  bool ghostTriggerPrev_ = false;
   float gateEnv_ = 0.0f;
 
   bool bodyWasHot_ = false;

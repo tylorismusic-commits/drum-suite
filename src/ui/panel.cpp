@@ -5,16 +5,24 @@
 
 #include "presets.hpp"
 #include "value_text.hpp"
+#include "dsp/wav.hpp"
 
 #include <cairo-ft.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
+#include <complex>
+#include <filesystem>
+#include <memory>
+
+#include <hdsp/biquad.hpp>
 
 namespace drum {
 
@@ -85,10 +93,61 @@ constexpr double kListY = 56.0;
 constexpr double kListRow = 22.0;
 constexpr double kListVisible = 17.0;
 
+std::string sampleDir() {
+  const char* xdg = std::getenv("XDG_DATA_HOME");
+  if (xdg && *xdg) return std::string(xdg) + "/drum-suite/samples";
+  const char* home = std::getenv("HOME");
+  if (home && *home) return std::string(home) + "/.local/share/drum-suite/samples";
+  return "drum-suite/samples";
+}
+
+std::vector<std::string> listSampleFiles(const std::string& dir) {
+  std::vector<std::string> names;
+  std::error_code ec;
+  if (!std::filesystem::is_directory(dir, ec)) return names;
+  for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+    if (ec) break;
+    if (!entry.is_regular_file(ec)) continue;
+    std::string name = entry.path().filename().string();
+    std::string ext = entry.path().extension().string();
+    for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (ext == ".wav") names.push_back(name);
+  }
+  std::sort(names.begin(), names.end());
+  return names;
+}
+
 double nowMs() {
   return std::chrono::duration<double, std::milli>(
              std::chrono::steady_clock::now().time_since_epoch())
       .count();
+}
+
+double biquadMagDb(const hdsp::Biquad& b, double freq, double sr) {
+  const double w = 2.0 * kPi * freq / sr;
+  const std::complex<double> z1 = std::polar(1.0, -w);
+  const std::complex<double> z2 = z1 * z1;
+  const std::complex<double> num =
+      static_cast<double>(b.b0) + static_cast<double>(b.b1) * z1 +
+      static_cast<double>(b.b2) * z2;
+  const std::complex<double> den =
+      1.0 + static_cast<double>(b.a1) * z1 + static_cast<double>(b.a2) * z2;
+  const double mag = std::abs(num / den);
+  return 20.0 * std::log10(std::max(1e-9, mag));
+}
+
+std::string prettyPath(const std::string& path) {
+  const char* home = std::getenv("HOME");
+  if (home && *home) {
+    const std::string h(home);
+    if (path.rfind(h, 0) == 0) return "~" + path.substr(h.size());
+  }
+  return path;
+}
+
+std::string clippedName(const std::string& name, size_t maxChars) {
+  if (name.size() <= maxChars) return name;
+  return name.substr(0, maxChars - 1) + "\u2026";
 }
 
 void roundRect(cairo_t* cr, double x, double y, double w, double h, double r) {
@@ -261,6 +320,32 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     widgets_.push_back(t);
   }
 
+  auto pill = [&](uint32_t param, double x, double y, double w, double h,
+                  const char* label) {
+    Widget b{};
+    b.kind = Kind::Pill;
+    b.param = param;
+    b.x = x;
+    b.y = y;
+    b.w = w;
+    b.h = h;
+    b.label = label;
+    widgets_.push_back(b);
+  };
+
+  auto toggle = [&](uint32_t param, double x, double y, const char* label) {
+    Widget t{};
+    t.kind = Kind::Toggle;
+    t.param = param;
+    t.x = x;
+    t.y = y;
+    t.w = 1.0;
+    t.h = 48;
+    t.label = label;
+    t.buttonText = {label};
+    widgets_.push_back(t);
+  };
+
   auto knob = [&](uint32_t param, double x, double y, double r, const char* label,
                   std::vector<const char*> scale = {}, bool below = false,
                   int steps = 0, double scaleRadius = 1.44) {
@@ -292,6 +377,28 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     g.h = 72;
     g.label = "GHOST MODE";
     widgets_.push_back(g);
+  }
+
+  if (state.page == 1) {
+    // Sample page.
+    pill(P_SAMPLE_ON, 760, 318, 150, 24, "SAMPLE ON");
+    knob(P_SAMPLE_LEVEL, 500, 410, 24, "LEVEL");
+    knob(P_SAMPLE_DIRECT, 610, 410, 24, "DIRECT");
+    knob(P_SAMPLE_PITCH, 720, 410, 24, "PITCH");
+    knob(P_SAMPLE_START, 830, 410, 24, "START");
+    toggle(P_SAMPLE_REVERSE, 500, 520, "REVERSE");
+    toggle(P_SAMPLE_CHOKE, 610, 520, "CHOKE");
+    knob(P_SAMPLE_FADE, 720, 520, 22, "FADE");
+    knob(P_SAMPLE_TRIGGER, 830, 520, 22, "TRIGGER",
+         sc(kSampleTriggerLabels), false, 3);
+  } else if (state.page == 2) {
+    // EQ page.
+    knob(P_EQ_LOW, 190, 535, 26, "LOW");
+    knob(P_EQ_LOW_MID, 310, 535, 26, "LOW MID");
+    knob(P_EQ_HIGH_MID, 430, 535, 26, "HIGH MID");
+    knob(P_EQ_HIGH, 550, 535, 26, "HIGH");
+    knob(P_EQ_HPF, 680, 535, 24, "HPF");
+    knob(P_EQ_LPF, 800, 535, 24, "LPF");
   }
 
   // Global.  Power is the bypass; the bottom corners are just trim.
@@ -335,6 +442,14 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
                         bool fine) {
   (void)fine;
   if (handlePresetClick(shared, state, x, y)) return true;
+  // Sample file list.
+  if (state.page == 1 && x >= 52 && x <= 452 && y >= 230 && y <= 420) {
+    const int row = static_cast<int>((y - 232) / 23) + state.sampleScroll;
+    if (row >= 0 && row < static_cast<int>(state.sampleFiles.size())) {
+      loadSample(shared, state, sampleDir() + "/" + state.sampleFiles[row]);
+      return true;
+    }
+  }
   for (const Widget& w : widgets_) {
     if (!hitWidget(w, x, y)) continue;
     switch (w.kind) {
@@ -428,6 +543,13 @@ bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
     state.presetScroll = std::min(maxScroll, std::max(0, state.presetScroll - (int)dy));
     return true;
   }
+  if (state.page == 1 && x >= 52 && x <= 452 && y >= 330 && y <= 600) {
+    const int maxScroll =
+        std::max(0, static_cast<int>(state.sampleFiles.size()) - 8);
+    state.sampleScroll =
+        std::min(maxScroll, std::max(0, state.sampleScroll - (dy > 0 ? 1 : -1)));
+    return true;
+  }
   for (const Widget& w : widgets_) {
     if (w.kind == Kind::Knob && hitWidget(w, x, y)) {
       const ParamSpec& spec = kParamSpecs[w.param];
@@ -452,6 +574,12 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   state.detectorDb = shared.detectorDb.load(std::memory_order_relaxed);
   state.gate = shared.gate.load(std::memory_order_relaxed);
   state.ghostActive = shared.ghostActive.load(std::memory_order_relaxed);
+  if (++state.sampleScanTicks >= 60) {
+    state.sampleScanTicks = 0;
+    state.sampleFiles = listSampleFiles(sampleDir());
+    const int maxScroll = std::max(0, static_cast<int>(state.sampleFiles.size()) - 10);
+    state.sampleScroll = std::min(std::max(state.sampleScroll, 0), maxScroll);
+  }
   const int head = shared.scopeHead.load(std::memory_order_relaxed) &
                    (Shared::kScopeSize - 1);
   for (int i = 0; i < Shared::kScopeSize; ++i) {
@@ -473,6 +601,10 @@ void Panel::draw(cairo_t* cr, Shared& shared, const PanelState& state) {
   drawBody(cr, drum, state.page);
   if (state.page == 0) {
     drawScope(cr, shared, state);
+  } else if (state.page == 1) {
+    drawSamplePage(cr, shared, state);
+  } else if (state.page == 2) {
+    drawEqPage(cr, shared, state);
   } else {
     drawPlaceholderPage(cr, state.page);
   }
@@ -599,8 +731,8 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
   cairo_stroke(cr);
   static const char* const kPageCaptions[7] = {
       "BLEED OUT  -  multiband de-bleed gate",
-      "SAMPLE  -  loader and trigger (next milestone)",
-      "EQ  -  4-band + HPF/LPF (next milestone)",
+      "SAMPLE  -  loader, pitch and gate trigger",
+      "EQ  -  4-band + HPF/LPF",
       "COMP  -  76 / 2A / VCA (next milestone)",
       "DRIVE  -  valve / console / tape (next milestone)",
       "CLIP  -  soft / hard / diode (next milestone)",
@@ -638,6 +770,267 @@ void Panel::drawPlaceholderPage(cairo_t* cr, int page) const {
          i == p ? skin.btnOn.g : skin.legendDim.g,
          i == p ? skin.btnOn.b : skin.legendDim.b);
   }
+}
+
+void Panel::updateWaveCache(const std::shared_ptr<const SampleBuffer>& sample,
+                           int cols) const {
+  if (!sample || sample->data.empty() || cols <= 0) {
+    waveSample_.reset();
+    waveWidth_ = 0;
+    waveMin_.clear();
+    waveMax_.clear();
+    return;
+  }
+  if (waveSample_ == sample && waveWidth_ == cols) return;
+  waveSample_ = sample;
+  waveWidth_ = cols;
+  waveMin_.assign(static_cast<size_t>(cols), 0.0f);
+  waveMax_.assign(static_cast<size_t>(cols), 0.0f);
+  const auto& data = sample->data;
+  const int len = static_cast<int>(data.size());
+  for (int x = 0; x < cols; ++x) {
+    const int a = static_cast<int>(static_cast<int64_t>(x) * len / cols);
+    const int b = std::max(
+        a + 1, static_cast<int>(static_cast<int64_t>(x + 1) * len / cols));
+    float lo = 0.0f, hi = 0.0f;
+    for (int i = a; i < b && i < len; ++i) {
+      lo = std::min(lo, data[static_cast<size_t>(i)]);
+      hi = std::max(hi, data[static_cast<size_t>(i)]);
+    }
+    waveMin_[static_cast<size_t>(x)] = lo;
+    waveMax_[static_cast<size_t>(x)] = hi;
+  }
+}
+
+void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
+                           const PanelState& state) const {
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+  const auto sample = shared.sample();
+
+  // Waveform well.
+  const double wx = 470, wy = 190, ww = 500, wh = 118;
+  roundRect(cr, wx, wy, ww, wh, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.38);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.28);
+  roundRect(cr, wx + 0.5, wy + 0.5, ww - 1.0, wh - 1.0, 4);
+  cairo_stroke(cr);
+  setRgb(cr, skin.legendDim, 0.16);
+  cairo_move_to(cr, wx + 6, wy + wh * 0.5);
+  cairo_line_to(cr, wx + ww - 6, wy + wh * 0.5);
+  cairo_stroke(cr);
+
+  if (sample && !sample->data.empty()) {
+    const int cols = static_cast<int>(ww - 8);
+    updateWaveCache(sample, cols);
+    const double cy = wy + wh * 0.5;
+    const double half = wh * 0.46;
+    cairo_set_line_width(cr, 1.0);
+    setRgb(cr, skin.btnOn, 0.9);
+    for (int x = 0; x < cols && x < static_cast<int>(waveMin_.size()); ++x) {
+      const double px = wx + 4 + x;
+      cairo_move_to(cr, px,
+                    cy - std::clamp(static_cast<double>(waveMax_[x]), -1.0, 1.0) * half);
+      cairo_line_to(cr, px,
+                    cy - std::clamp(static_cast<double>(waveMin_[x]), -1.0, 1.0) * half);
+      cairo_stroke(cr);
+    }
+  } else {
+    text(cr, "NO SAMPLE LOADED", wx + ww * 0.5, wy + wh * 0.5 - 6, 14, 1,
+         skin.legend.r, skin.legend.g, skin.legend.b);
+    text(cr, "PUT WAV FILES IN THE FOLDER BELOW, THEN CLICK ONE", wx + ww * 0.5,
+         wy + wh * 0.5 + 15, 9, 1, skin.legendDim.r, skin.legendDim.g,
+         skin.legendDim.b);
+  }
+
+  text(cr, "SAMPLE WAVEFORM", wx, wy - 10, 9, 0, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+
+  if (sample && !sample->data.empty()) {
+    char info[160];
+    const double seconds = sample->sampleRate > 0
+                               ? static_cast<double>(sample->data.size()) /
+                                     sample->sampleRate
+                               : 0.0;
+    std::snprintf(info, sizeof(info), "%s   -   48 kHz   -   %.2f s",
+                  clippedName(sample->name, 34).c_str(), seconds);
+    text(cr, info, wx, wy + wh + 18, 10, 0, skin.legend.r, skin.legend.g,
+         skin.legend.b);
+  } else {
+    text(cr, "The sample is added after the gate; use the trigger mode to "
+             "choose what fires it.",
+         wx, wy + wh + 18, 9, 0, skin.legendDim.r, skin.legendDim.g,
+         skin.legendDim.b);
+  }
+
+  // File browser.
+  const double bx = 52, by = 190, bw = 400, bh = 240;
+  roundRect(cr, bx, by, bw, bh, 5);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.30);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.32);
+  roundRect(cr, bx + 0.5, by + 0.5, bw - 1.0, bh - 1.0, 5);
+  cairo_stroke(cr);
+
+  text(cr, "SAMPLES", bx + 14, by + 18, 10, 0, skin.legend.r, skin.legend.g,
+       skin.legend.b);
+  text(cr, clippedName(prettyPath(sampleDir()), 34).c_str(), bx + bw - 14,
+       by + 18, 8.5, 2,
+       skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+  setRgb(cr, skin.legendDim, 0.25);
+  cairo_move_to(cr, bx + 12, by + 26.5);
+  cairo_line_to(cr, bx + bw - 12, by + 26.5);
+  cairo_stroke(cr);
+
+  if (state.sampleFiles.empty()) {
+    text(cr, "NO .WAV FILES IN THIS FOLDER", bx + bw * 0.5, by + 92, 10, 1,
+         skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+    text(cr, "THE LIST REFRESHES AUTOMATICALLY", bx + bw * 0.5, by + 112, 8.5,
+         1, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+  } else {
+    const std::string loaded = sample ? sample->name : std::string();
+    for (int i = 0; i < 8; ++i) {
+      const int index = state.sampleScroll + i;
+      if (index >= static_cast<int>(state.sampleFiles.size())) break;
+      const std::string& name = state.sampleFiles[static_cast<size_t>(index)];
+      const bool selected = name == loaded;
+      const double rowY = 232 + i * 23;
+      if (selected) {
+        roundRect(cr, bx + 8, rowY, bw - 16, 21, 3);
+        setRgb(cr, skin.btnOn, 0.20);
+        cairo_fill(cr);
+      }
+      text(cr, clippedName(name, 44).c_str(), bx + 16, rowY + 15, 10, 0,
+           selected ? skin.btnTextOn.r : skin.legend.r,
+           selected ? skin.btnTextOn.g : skin.legend.g,
+           selected ? skin.btnTextOn.b : skin.legend.b);
+    }
+    if (static_cast<int>(state.sampleFiles.size()) > 8) {
+      text(cr, "SCROLL TO BROWSE", bx + bw - 14, by + bh - 8, 8.5, 2,
+           skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+    }
+  }
+}
+
+void Panel::drawEqPage(cairo_t* cr, const Shared& shared,
+                       const PanelState& state) const {
+  (void)state;
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+
+  const float sr = 48000.0f;
+  const float lowGain = static_cast<float>((shared.get(P_EQ_LOW) - 0.5) * 24.0);
+  const float lowMidGain =
+      static_cast<float>((shared.get(P_EQ_LOW_MID) - 0.5) * 24.0);
+  const float highMidGain =
+      static_cast<float>((shared.get(P_EQ_HIGH_MID) - 0.5) * 24.0);
+  const float highGain = static_cast<float>((shared.get(P_EQ_HIGH) - 0.5) * 24.0);
+  const float hpFreq = eqHpfHz(static_cast<float>(shared.get(P_EQ_HPF)));
+  const float lpFreq = eqLpfHz(static_cast<float>(shared.get(P_EQ_LPF)));
+
+  hdsp::Biquad filters[6];
+  filters[0].lowShelf(80.0f, lowGain, 0.7f, sr);
+  filters[1].peak(250.0f, lowMidGain, 0.9f, sr);
+  filters[2].peak(1200.0f, highMidGain, 0.9f, sr);
+  filters[3].highShelf(6000.0f, highGain, 0.7f, sr);
+  if (shared.get(P_EQ_HPF) > 0.001) filters[4].highPass(hpFreq, 0.707f, sr);
+  if (shared.get(P_EQ_LPF) < 0.999) filters[5].lowPass(lpFreq, 0.707f, sr);
+
+  const double gx = 150, gy = 190, gw = 740, gh = 250;
+  roundRect(cr, gx, gy, gw, gh, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.38);
+  cairo_fill(cr);
+
+  const double dbTop = 24.0, dbBottom = -24.0;
+  auto xForHz = [&](double hz) {
+    return gx + gw * std::log(std::max(20.0, hz) / 20.0) / std::log(1000.0);
+  };
+  auto yForDb = [&](double db) {
+    return gy + (dbTop - std::clamp(db, dbBottom, dbTop)) /
+                    (dbTop - dbBottom) * gh;
+  };
+
+  cairo_set_line_width(cr, 1.0);
+  for (double db : {24.0, 12.0, 0.0, -12.0, -24.0}) {
+    setRgb(cr, skin.legendDim, db == 0.0 ? 0.32 : 0.15);
+    cairo_move_to(cr, gx, yForDb(db));
+    cairo_line_to(cr, gx + gw, yForDb(db));
+    cairo_stroke(cr);
+  }
+  for (double hz : {50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0,
+                    10000.0}) {
+    setRgb(cr, skin.legendDim, 0.12);
+    cairo_move_to(cr, xForHz(hz), gy);
+    cairo_line_to(cr, xForHz(hz), gy + gh);
+    cairo_stroke(cr);
+  }
+
+  constexpr int kPoints = 260;
+  double curve[kPoints];
+  for (int i = 0; i < kPoints; ++i) {
+    const double t = static_cast<double>(i) / (kPoints - 1);
+    const double hz = 20.0 * std::pow(1000.0, t);
+    double db = 0.0;
+    for (auto& f : filters) db += biquadMagDb(f, hz, sr);
+    curve[i] = db;
+  }
+
+  // Shade between the curve and the 0 dB line.
+  cairo_new_path(cr);
+  cairo_move_to(cr, gx, yForDb(0.0));
+  for (int i = 0; i < kPoints; ++i) {
+    cairo_line_to(cr, gx + gw * i / (kPoints - 1), yForDb(curve[i]));
+  }
+  cairo_line_to(cr, gx + gw, yForDb(0.0));
+  cairo_close_path(cr);
+  setRgb(cr, skin.btnOn, 0.12);
+  cairo_fill(cr);
+
+  cairo_new_path(cr);
+  for (int i = 0; i < kPoints; ++i) {
+    const double x = gx + gw * i / (kPoints - 1);
+    if (i == 0) cairo_move_to(cr, x, yForDb(curve[i]));
+    else cairo_line_to(cr, x, yForDb(curve[i]));
+  }
+  cairo_set_line_width(cr, 2.0);
+  setRgb(cr, skin.btnOn, 0.95);
+  cairo_stroke(cr);
+
+  setRgb(cr, skin.legendDim, 0.35);
+  roundRect(cr, gx + 0.5, gy + 0.5, gw - 1.0, gh - 1.0, 4);
+  cairo_stroke(cr);
+
+  for (double hz : {20.0, 100.0, 1000.0, 10000.0, 20000.0}) {
+    char label[16];
+    if (hz >= 1000.0) std::snprintf(label, sizeof(label), "%.0fk", hz / 1000.0);
+    else std::snprintf(label, sizeof(label), "%.0f", hz);
+    text(cr, label, xForHz(hz), gy + gh + 15, 9, 1, skin.legendDim.r,
+         skin.legendDim.g, skin.legendDim.b);
+  }
+  for (double db : {24.0, 12.0, 0.0, -12.0, -24.0}) {
+    char label[16];
+    if (db == 0.0) std::snprintf(label, sizeof(label), "0");
+    else std::snprintf(label, sizeof(label), "%+.0f", db);
+    text(cr, label, gx - 10, yForDb(db) + 3, 9, 2, skin.legendDim.r,
+         skin.legendDim.g, skin.legendDim.b);
+  }
+
+  char hp[32], lp[32];
+  if (shared.get(P_EQ_HPF) > 0.001)
+    std::snprintf(hp, sizeof(hp), "HPF %.0f Hz", hpFreq);
+  else
+    std::snprintf(hp, sizeof(hp), "HPF OFF");
+  if (shared.get(P_EQ_LPF) < 0.999)
+    std::snprintf(lp, sizeof(lp), "LPF %.0f Hz", lpFreq);
+  else
+    std::snprintf(lp, sizeof(lp), "LPF OFF");
+  text(cr, hp, gx, gy - 10, 9, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+  text(cr, lp, gx + gw, gy - 10, 9, 2, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
 }
 
 void Panel::drawScope(cairo_t* cr, const Shared& shared,
@@ -1014,8 +1407,8 @@ void Panel::drawToggle(cairo_t* cr, const Widget& w, bool on,
   cairo_fill(cr);
   text(cr, w.buttonText[0], w.x, w.y - 8, 12, 1, skin.legend.r, skin.legend.g,
        skin.legend.b);
-  text(cr, w.buttonText[1], w.x, w.y + w.h + 18, 12, 1, skin.legend.r,
-       skin.legend.g, skin.legend.b);
+  text(cr, on ? "ON" : "OFF", w.x, w.y + w.h + 18, 11, 1, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
 }
 
 void Panel::drawPresetBar(cairo_t* cr, const Shared& shared,
@@ -1176,6 +1569,22 @@ void Panel::applyPreset(Shared& shared, PanelState& state, int index) const {
   state.presetIndex = index;
   state.presetDirty = false;
   state.presetOpen = 0;
+}
+
+bool Panel::loadSample(Shared& shared, PanelState& state,
+                       const std::string& path) const {
+  std::vector<float> data;
+  if (!readWavMono(path, data, 48000) || data.empty()) {
+    return false;
+  }
+  auto buffer = std::make_shared<SampleBuffer>();
+  buffer->data = std::move(data);
+  buffer->sampleRate = 48000;
+  buffer->name = std::filesystem::path(path).filename().string();
+  shared.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+  shared.set(P_SAMPLE_ON, 1.0);
+  state.presetDirty = true;
+  return true;
 }
 
 bool Panel::handlePresetClick(Shared& shared, PanelState& state, double x,

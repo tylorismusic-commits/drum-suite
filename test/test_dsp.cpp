@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <vector>
 
 #include "dsp/engine.hpp"
@@ -247,6 +248,102 @@ int main() {
           "DeBleed leaves the drum body untouched");
     check(std::fabs(db(attackOff) - db(attackOn)) < 1.5,
           "DeBleed keeps the high-frequency attack of the hit");
+  }
+
+
+  {
+    // Sample player: a gate trigger fires one voice, fades in, and the voice
+    // ends at the end of the buffer.
+    SamplePlayer player;
+    player.prepare(kSr);
+    Controls c;
+    c.sampleOn = true;
+    c.sampleLevel = 100.0f;
+    c.sampleDirect = 0.0f;
+    c.sampleFadeMs = 0.5f;
+    c.sampleTrigger = 0;
+    c.sampleChoke = true;
+    auto buffer = std::make_shared<SampleBuffer>();
+    buffer->data.assign(1000, 0.5f);
+    buffer->sampleRate = static_cast<int>(kSr);
+    buffer->name = "test";
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(c);
+
+    Meters meters;
+    std::vector<float> l(512, 0.0f), r(512, 0.0f);
+    std::vector<uint8_t> trigger(512, 0);
+    trigger[0] = 1;
+    player.process(l.data(), r.data(), trigger.data(), 512, meters);
+    check(meters.sampleTriggered, "gate trigger fires the sample player");
+    check(meters.sampleVoices == 1, "one sample voice is active");
+    check(rms(l, 24, 500) > 0.25, "sample voice produces audio");
+
+    std::vector<uint8_t> trigger2(600, 0);
+    std::vector<float> l2(600, 0.0f), r2(600, 0.0f);
+    player.process(l2.data(), r2.data(), trigger2.data(), 600, meters);
+    check(meters.sampleVoices == 0, "sample voice ends at the buffer end");
+
+    // +12 semitones consumes the buffer in half the time.
+    Controls fast = c;
+    fast.samplePitch = 12.0f;
+    player.setControls(fast);
+    std::vector<uint8_t> trigger3(600, 0);
+    std::vector<float> l3(600, 0.0f), r3(600, 0.0f);
+    player.process(l3.data(), r3.data(), trigger3.data(), 600, meters);
+    check(meters.sampleVoices == 0,
+          "octave-up sample finishes in half the samples");
+
+    // Choke keeps one voice; disabling it lets two overlap.
+    Controls choke = c;
+    choke.sampleChoke = true;
+    player.setControls(choke);
+    std::vector<float> l4(32, 0.0f), r4(32, 0.0f);
+    std::vector<uint8_t> fire(32, 0);
+    fire[0] = 1;
+    player.process(l4.data(), r4.data(), fire.data(), 32, meters);
+    fire[0] = 1;
+    player.process(l4.data(), r4.data(), fire.data(), 32, meters);
+    check(meters.sampleVoices == 1, "choke retriggers a single sample voice");
+    Controls noChoke = c;
+    noChoke.sampleChoke = false;
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(noChoke);
+    player.process(l4.data(), r4.data(), fire.data(), 32, meters);
+    fire[0] = 1;
+    player.process(l4.data(), r4.data(), fire.data(), 32, meters);
+    check(meters.sampleVoices == 2, "choke off allows overlapping voices");
+  }
+
+  {
+    // EQ: low shelf boost at 60 Hz, flat reference, and HPF cut.
+    const int n = static_cast<int>(kSr * 0.5f);
+    std::vector<float> low(n), mid(n);
+    for (int i = 0; i < n; ++i) {
+      low[i] = 0.2f * std::sin(2.0f * 3.14159265f * 60.0f * i / kSr);
+      mid[i] = 0.2f * std::sin(2.0f * 3.14159265f * 5000.0f * i / kSr);
+    }
+    Controls flat = base();
+    flat.gateOn = false;
+    flat.bypass = false;
+    Controls boost = flat;
+    boost.eqLow = 1.0f;  // +12 dB low shelf
+    Controls hp = flat;
+    hp.eqHpf = 0.93f;  // ~250 Hz high-pass
+
+    const double flatLow = rms(run(flat, low).l, 400, 2000);
+    const double boostLow = rms(run(boost, low).l, 400, 2000);
+    const double hpLow = rms(run(hp, low).l, 400, 2000);
+    const double flatMid = rms(run(flat, mid).l, 400, 2000);
+    const double boostMid = rms(run(boost, mid).l, 400, 2000);
+    std::printf("  eq: 60 Hz flat %.1f, boosted %.1f, hpf %.1f dB; 5 kHz %.1f -> %.1f dB\n",
+                db(flatLow), db(boostLow), db(hpLow), db(flatMid), db(boostMid));
+    check(db(boostLow) - db(flatLow) > 5.0,
+          "EQ low shelf boosts the low band");
+    check(std::fabs(db(boostMid) - db(flatMid)) < 1.0,
+          "EQ leaves the top band flat with a low boost");
+    check(db(hpLow) < db(flatLow) - 3.0,
+          "EQ high-pass cuts the low band when engaged");
   }
 
   std::printf("%d failure(s)\n", gFailures);

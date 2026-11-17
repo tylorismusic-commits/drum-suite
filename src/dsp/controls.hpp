@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <cmath>
+#include <memory>
+#include <string>
+#include <vector>
+
 namespace drum {
 
 // Drum profiles automate the parts of the gate that should not need a knob:
@@ -67,6 +72,24 @@ inline constexpr Profile kProfiles[8] = {
 
 inline constexpr int kDrumCount = 8;
 
+inline float eqHpfHz(float v) noexcept {
+  v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+  return 20.0f * std::pow(25.0f, v);
+}
+
+inline float eqLpfHz(float v) noexcept {
+  v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+  return 500.0f * std::pow(40.0f, v);
+}
+
+// One loaded sample.  The audio thread only sees an immutable shared_ptr; the
+// panel builds a new buffer when the user loads a file.
+struct SampleBuffer {
+  std::vector<float> data;
+  int sampleRate = 48000;
+  std::string name;
+};
+
 struct Controls {
   int drum = 0;  // Kick
 
@@ -86,6 +109,25 @@ struct Controls {
   int ghostNote = 38;
   int ghostCc = 74;
   int ghostTrigger = 0;
+
+  // EQ.
+  float eqLow = 0.5f;
+  float eqLowMid = 0.5f;
+  float eqHighMid = 0.5f;
+  float eqHigh = 0.5f;
+  float eqHpf = 0.0f;
+  float eqLpf = 1.0f;
+
+  // Sample loader.
+  bool sampleOn = false;
+  float sampleLevel = 80.0f;    // 0..100
+  float sampleDirect = 100.0f;  // 0..100
+  float samplePitch = 0.0f;     // semitones
+  float sampleStart = 0.0f;     // 0..100
+  bool sampleReverse = false;
+  bool sampleChoke = true;
+  float sampleFadeMs = 3.0f;    // 0..500
+  int sampleTrigger = 0;        // 0 Gate, 1 Transient, 2 Always
 };
 
 struct Meters {
@@ -99,6 +141,8 @@ struct Meters {
   float detectorDb = -120.0f;
   float gate = 1.0f;
   bool ghostActive = false;
+  int sampleVoices = 0;
+  bool sampleTriggered = false;
 };
 
 } // namespace drum

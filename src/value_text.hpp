@@ -39,6 +39,25 @@ inline std::string formatParamValue(const Shared&, uint32_t id, double value) {
     std::snprintf(buf, sizeof(buf), "%.0f", value);
     return buf;
   }
+  if (id == P_EQ_LOW || id == P_EQ_LOW_MID || id == P_EQ_HIGH_MID ||
+      id == P_EQ_HIGH) {
+    std::snprintf(buf, sizeof(buf), "%+.1f dB", (value - 0.5) * 24.0);
+    return buf;
+  }
+  if (id == P_EQ_HPF) {
+    std::snprintf(buf, sizeof(buf), "%.0f Hz",
+                  eqHpfHz(static_cast<float>(value)));
+    return buf;
+  }
+  if (id == P_EQ_LPF) {
+    std::snprintf(buf, sizeof(buf), "%.0f Hz",
+                  eqLpfHz(static_cast<float>(value)));
+    return buf;
+  }
+  if (id == P_SAMPLE_PITCH) {
+    std::snprintf(buf, sizeof(buf), "%+.1f st", value);
+    return buf;
+  }
   if (s.unit && std::strcmp(s.unit, "dB") == 0) {
     std::snprintf(buf, sizeof(buf), "%+.1f dB", value);
     return buf;
@@ -76,6 +95,14 @@ inline bool parseParamValue(const Shared&, uint32_t id,
   char* end = nullptr;
   double v = std::strtod(text.c_str(), &end);
   if (end == text.c_str()) return false;
+  if (id == P_EQ_LOW || id == P_EQ_LOW_MID || id == P_EQ_HIGH_MID ||
+      id == P_EQ_HIGH) {
+    v = v / 24.0 + 0.5;
+  } else if (id == P_EQ_HPF) {
+    v = std::log(std::max(v, 20.0) / 20.0) / std::log(25.0);
+  } else if (id == P_EQ_LPF) {
+    v = std::log(std::max(v, 500.0) / 500.0) / std::log(40.0);
+  }
   v = std::min(std::max(v, s.min), s.max);
   *out = v;
   return true;

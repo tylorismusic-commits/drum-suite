@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The host owns the widget size.  On every allocation we letterbox the
-// 1040x640 panel into whatever we are given and redraw.  We never call
+// 1040x720 panel into whatever we are given and redraw.  We never call
 // XResizeWindow or the host's ui_resize in response to a configure event:
 // suil turns those into another GTK allocation, which arrives back as another
 // configure event, and the window flickers and eventually wedges Ardour.
@@ -307,7 +307,7 @@ LV2UI_Handle uiInstantiate(const LV2UI_Descriptor*, const char* /*pluginUri*/,
   ui->panel.loadFont(dir);
 
   // Ask for the logical size once, so a host that sizes the window from the
-  // widget's preferred size opens us at 1040x640.  After this the host owns
+  // widget's preferred size opens us at 1040x720.  After this the host owns
   // the size and we only follow allocations.
   if (ui->hostResize && ui->hostResize->ui_resize) {
     ui->hostResize->ui_resize(ui->hostResize->handle,

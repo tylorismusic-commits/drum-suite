@@ -653,7 +653,7 @@ bool guiGetResizeHints(const clap_plugin_t*, clap_gui_resize_hints_t* hints) {
   return true;
 }
 
-// Returns the nearest valid size; the editor always keeps 1040:640.
+// Returns the nearest valid size; the editor always keeps 1040:720.
 bool guiAdjustSize(const clap_plugin_t*, uint32_t* width, uint32_t* height) {
   const UiSize s = snapSize(*width, *height);
   *width = s.width;
@@ -762,6 +762,7 @@ clap_process_status pluginProcess(const clap_plugin_t* p, const clap_process_t* 
     std::memcpy(right, inR, frames * sizeof(float));
   }
 
+  s->engine.setSample(s->shared.sample());
   s->engine.setControls(controlsFrom(s->shared), 0.0f, false);
 
   s->engine.process(left, right, static_cast<int>(frames), s->meters);

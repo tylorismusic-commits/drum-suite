@@ -83,6 +83,7 @@ LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
     p->midiEventType = p->map->map(p->map->handle, LV2_MIDI__MidiEvent);
   }
   p->engine.prepare(p->sampleRate);
+  p->engine.setSample(p->shared.sample());
   p->engine.setControls(drum::controlsFrom(p->shared), 0.0f, false);
   return p;
 }
@@ -164,6 +165,7 @@ void run(LV2_Handle handle, uint32_t frames) {
     }
   }
 
+  p->engine.setSample(p->shared.sample());
   p->engine.setControls(drum::controlsFrom(p->shared), 0.0f, false);
 
   if (p->audioOutL != p->audioInL) {

@@ -24,6 +24,21 @@ enum ParamId : uint32_t {
   P_GHOST,
   P_GHOST_NOTE,
   P_GHOST_CC,
+  P_SAMPLE_ON,
+  P_SAMPLE_LEVEL,
+  P_SAMPLE_DIRECT,
+  P_SAMPLE_PITCH,
+  P_SAMPLE_START,
+  P_SAMPLE_REVERSE,
+  P_SAMPLE_CHOKE,
+  P_SAMPLE_FADE,
+  P_SAMPLE_TRIGGER,
+  P_EQ_LOW,
+  P_EQ_LOW_MID,
+  P_EQ_HIGH_MID,
+  P_EQ_HIGH,
+  P_EQ_HPF,
+  P_EQ_LPF,
   P_COUNT
 };
 
@@ -53,6 +68,9 @@ struct ParamSpec {
 
 inline constexpr const char* kDrumLabels[] = {"Kick", "Snare", "Tom", "Hat",
                                               "Ride", "Room", "OH", "Bus"};
+inline constexpr const char* kSampleTriggerLabels[] = {"Gate", "Transient",
+                                                       "Always"};
+
 
 inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"power", "Power", "Global", 0.0, 1.0, 1.0, true, false, true, nullptr, {}},
@@ -76,6 +94,29 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      nullptr, {}},
     {"ghost_cc", "Ghost CC", "MIDI", 0.0, 127.0, 74.0, true, false, false,
      nullptr, {}},
+    {"sample_on", "Sample", "Sample", 0.0, 1.0, 0.0, true, false, true, nullptr, {}},
+    {"sample_level", "Sample Level", "Sample", 0.0, 100.0, 80.0, false, false,
+     false, "%", {}},
+    {"sample_direct", "Direct", "Sample", 0.0, 100.0, 100.0, false, false,
+     false, "%", {}},
+    {"sample_pitch", "Pitch", "Sample", -24.0, 24.0, 0.0, false, false, false,
+     "st", {}},
+    {"sample_start", "Start", "Sample", 0.0, 100.0, 0.0, false, false, false,
+     "%", {}},
+    {"sample_reverse", "Reverse", "Sample", 0.0, 1.0, 0.0, true, false, true,
+     nullptr, {}},
+    {"sample_choke", "Choke", "Sample", 0.0, 1.0, 1.0, true, false, true,
+     nullptr, {}},
+    {"sample_fade", "Fade", "Sample", 0.0, 500.0, 3.0, false, false, false,
+     "ms", {}},
+    {"sample_trigger", "Trigger", "Sample", 0.0, 2.0, 0.0, true, false, false,
+     nullptr, labels(kSampleTriggerLabels)},
+    {"eq_low", "Low", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
+    {"eq_low_mid", "Low Mid", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
+    {"eq_high_mid", "High Mid", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
+    {"eq_high", "High", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
+    {"eq_hpf", "HPF", "EQ", 0.0, 1.0, 0.0, false, false, false, "Hz", {}},
+    {"eq_lpf", "LPF", "EQ", 0.0, 1.0, 1.0, false, false, false, "Hz", {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -143,6 +184,14 @@ public:
     return false;
   }
 
+  std::shared_ptr<const SampleBuffer> sample() const noexcept {
+    return sample_.load();
+  }
+
+  void setSample(std::shared_ptr<const SampleBuffer> s) noexcept {
+    sample_.store(std::move(s));
+  }
+
   uint32_t takeGhostTrigger() noexcept {
     return midiGhostTrigger.exchange(0, std::memory_order_acq_rel);
   }
@@ -156,6 +205,7 @@ public:
   std::atomic<float> scopeIn[kScopeSize];
   std::atomic<float> scopeGate[kScopeSize];
   std::atomic<int> scopeHead;
+  std::atomic<std::shared_ptr<const SampleBuffer>> sample_;
 
 private:
   std::atomic<double> values_[P_COUNT];
@@ -185,6 +235,21 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.ghostNote = static_cast<int>(s.get(P_GHOST_NOTE) + 0.5);
   c.ghostCc = static_cast<int>(s.get(P_GHOST_CC) + 0.5);
   c.ghostTrigger = static_cast<int>(s.takeGhostTrigger());
+  c.sampleOn = s.get(P_SAMPLE_ON) > 0.5;
+  c.sampleLevel = static_cast<float>(s.get(P_SAMPLE_LEVEL));
+  c.sampleDirect = static_cast<float>(s.get(P_SAMPLE_DIRECT));
+  c.samplePitch = static_cast<float>(s.get(P_SAMPLE_PITCH));
+  c.sampleStart = static_cast<float>(s.get(P_SAMPLE_START));
+  c.sampleReverse = s.get(P_SAMPLE_REVERSE) > 0.5;
+  c.sampleChoke = s.get(P_SAMPLE_CHOKE) > 0.5;
+  c.sampleFadeMs = static_cast<float>(s.get(P_SAMPLE_FADE));
+  c.sampleTrigger = static_cast<int>(s.get(P_SAMPLE_TRIGGER) + 0.5);
+  c.eqLow = static_cast<float>(s.get(P_EQ_LOW));
+  c.eqLowMid = static_cast<float>(s.get(P_EQ_LOW_MID));
+  c.eqHighMid = static_cast<float>(s.get(P_EQ_HIGH_MID));
+  c.eqHigh = static_cast<float>(s.get(P_EQ_HIGH));
+  c.eqHpf = static_cast<float>(s.get(P_EQ_HPF));
+  c.eqLpf = static_cast<float>(s.get(P_EQ_LPF));
   return c;
 }
 

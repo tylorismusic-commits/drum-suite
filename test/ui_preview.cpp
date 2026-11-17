@@ -7,8 +7,11 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <memory>
 #include <string>
 
+#include "dsp/wav.hpp"
 #include "params.hpp"
 #include "ui/geometry.hpp"
 #include "ui/panel.hpp"
@@ -26,6 +29,29 @@ void fakeScope(Shared& s, float gate) {
                          std::memory_order_relaxed);
   }
 }
+void loadPreviewSample(Shared& s) {
+  const char* home = std::getenv("HOME");
+  if (!home || !*home) return;
+  const std::filesystem::path dir =
+      std::filesystem::path(home) / ".local/share/drum-suite/samples";
+  std::error_code ec;
+  if (!std::filesystem::is_directory(dir, ec)) return;
+  for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+    if (ec || !entry.is_regular_file(ec)) continue;
+    if (entry.path().extension() != ".wav") continue;
+    std::vector<float> data;
+    if (!readWavMono(entry.path().string(), data, 48000) || data.empty())
+      continue;
+    auto buffer = std::make_shared<SampleBuffer>();
+    buffer->data = std::move(data);
+    buffer->sampleRate = 48000;
+    buffer->name = entry.path().filename().string();
+    s.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    s.set(P_SAMPLE_ON, 1.0);
+    return;
+  }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -56,6 +82,16 @@ int main(int argc, char** argv) {
     shared.gate.store(1.0f);
     shared.ghostActive.store(ghost);
     fakeScope(shared, 1.0f);
+    if (page == 1) {
+      loadPreviewSample(shared);
+    } else if (page == 2) {
+      shared.set(P_EQ_LOW, 0.75);
+      shared.set(P_EQ_LOW_MID, 0.40);
+      shared.set(P_EQ_HIGH_MID, 0.58);
+      shared.set(P_EQ_HIGH, 0.70);
+      shared.set(P_EQ_HPF, 0.18);
+      shared.set(P_EQ_LPF, 0.78);
+    }
 
     PanelState state;
     state.page = page;

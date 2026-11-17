@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
-project(drum_suite VERSION 0.1.0 LANGUAGES CXX)
+project(drum_suite VERSION 0.2.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -48,7 +48,7 @@ target_include_directories(drum_suite PRIVATE
 target_link_libraries(drum_suite PRIVATE
   PkgConfig::CAIRO PkgConfig::FREETYPE PkgConfig::X11
   Threads::Threads ${CMAKE_DL_LIBS})
-target_compile_features(drum_suite PRIVATE cxx_std_17)
+target_compile_features(drum_suite PRIVATE cxx_std_20)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(drum_suite PRIVATE -Wall -Wextra -fvisibility=hidden)
 endif()
@@ -77,31 +77,31 @@ install(FILES ${DRUM_RESOURCE_FILES}
 # ---------------------------------------------------------------------------
 add_executable(drum_dsp_test test/test_dsp.cpp)
 target_include_directories(drum_dsp_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_compile_features(drum_dsp_test PRIVATE cxx_std_17)
+target_compile_features(drum_dsp_test PRIVATE cxx_std_20)
 add_test(NAME drum_dsp COMMAND drum_dsp_test)
 
 add_executable(drum_panel_test test/test_panel.cpp ${DRUM_UI_SOURCES})
 target_include_directories(drum_panel_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_panel_test PRIVATE PkgConfig::CAIRO PkgConfig::FREETYPE)
-target_compile_features(drum_panel_test PRIVATE cxx_std_17)
+target_compile_features(drum_panel_test PRIVATE cxx_std_20)
 add_test(NAME drum_panel COMMAND drum_panel_test)
 
 add_executable(drum_geometry_test test/test_geometry.cpp)
 target_include_directories(drum_geometry_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_geometry_test PRIVATE PkgConfig::CAIRO)
-target_compile_features(drum_geometry_test PRIVATE cxx_std_17)
+target_compile_features(drum_geometry_test PRIVATE cxx_std_20)
 add_test(NAME drum_geometry COMMAND drum_geometry_test)
 
 add_executable(drum_layout_test test/test_layout.cpp ${DRUM_UI_SOURCES})
 target_include_directories(drum_layout_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_layout_test PRIVATE PkgConfig::CAIRO PkgConfig::FREETYPE)
-target_compile_features(drum_layout_test PRIVATE cxx_std_17)
+target_compile_features(drum_layout_test PRIVATE cxx_std_20)
 add_test(NAME drum_layout COMMAND drum_layout_test)
 
 add_executable(drum_ui_preview test/ui_preview.cpp ${DRUM_UI_SOURCES})
 target_include_directories(drum_ui_preview PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_ui_preview PRIVATE PkgConfig::CAIRO PkgConfig::FREETYPE)
-target_compile_features(drum_ui_preview PRIVATE cxx_std_17)
+target_compile_features(drum_ui_preview PRIVATE cxx_std_20)
 
 # ---------------------------------------------------------------------------
 # Metadata generator: emits lv2/*.ttl from src/params.hpp and src/presets.hpp.
@@ -109,7 +109,7 @@ target_compile_features(drum_ui_preview PRIVATE cxx_std_17)
 # ---------------------------------------------------------------------------
 add_executable(drum_ttl_gen tools/gen_ttl.cpp)
 target_include_directories(drum_ttl_gen PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_compile_features(drum_ttl_gen PRIVATE cxx_std_17)
+target_compile_features(drum_ttl_gen PRIVATE cxx_std_20)
 add_test(NAME drum_ttl
   COMMAND drum_ttl_gen --check --root "${CMAKE_SOURCE_DIR}")
 
@@ -123,7 +123,7 @@ set(LV2_BUNDLE_DIR "${CMAKE_BINARY_DIR}/lv2/drum-suite.lv2")
 add_library(drum_suite_lv2 MODULE src/drum_suite_lv2.cpp)
 target_include_directories(drum_suite_lv2 PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_suite_lv2 PRIVATE PkgConfig::LV2)
-target_compile_features(drum_suite_lv2 PRIVATE cxx_std_17)
+target_compile_features(drum_suite_lv2 PRIVATE cxx_std_20)
 set_target_properties(drum_suite_lv2 PROPERTIES
   PREFIX ""
   OUTPUT_NAME "drum_suite"
@@ -135,7 +135,7 @@ target_include_directories(drum_suite_lv2_ui PRIVATE
 target_link_libraries(drum_suite_lv2_ui PRIVATE
   PkgConfig::CAIRO PkgConfig::FREETYPE PkgConfig::X11
   PkgConfig::LV2 Threads::Threads)
-target_compile_features(drum_suite_lv2_ui PRIVATE cxx_std_17)
+target_compile_features(drum_suite_lv2_ui PRIVATE cxx_std_20)
 set_target_properties(drum_suite_lv2_ui PROPERTIES
   PREFIX ""
   OUTPUT_NAME "drum_suite_ui"
