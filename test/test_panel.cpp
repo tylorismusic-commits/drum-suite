@@ -170,6 +170,18 @@ int main() {
     panel.pointerDown(shared, state, 447, 196, false);
     panel.pointerUp();
     check(shared.get(P_CLIP_ON) == 0.0, "CLIP ON pill disables the clipper");
+
+    // Limit page: safety controls.
+    panel.pointerDown(shared, state, 940, 87, false);
+    panel.pointerUp();
+    check(state.page == 6, "Limit page tab selects the Limit page");
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 234, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_LIMIT_TRUEPEAK) == 0.0, "TRUE PEAK pill toggles off");
+    panel.pointerDown(shared, state, 107, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_LIMIT_ON) == 0.0, "LIMIT ON pill disables the limiter");
   }
 
   {
@@ -259,6 +271,9 @@ int main() {
     check(parseParamValue(shared, P_COMP_MAKEUP, "+6 dB", &v) &&
               std::fabs(v - 0.8) < 1e-9,
           "typed compressor makeup accepts +6 dB");
+    check(parseParamValue(shared, P_LIMIT_CEILING, "-1 dB", &v) &&
+              std::fabs(-12.0 + 12.0 * v + 1.0) < 1e-9,
+          "typed limiter ceiling accepts -1 dB");
   }
 
   cairo_destroy(cr);

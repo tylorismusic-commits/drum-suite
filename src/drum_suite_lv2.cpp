@@ -35,6 +35,7 @@ enum Port : uint32_t {
   PORT_GR,
   PORT_DETECTOR,
   PORT_COMP_GR,
+  PORT_LIMIT_GR,
   PORT_GATE,
   PORT_GHOST_ACTIVE,
   PORT_CLIP_ACTIVE,
@@ -65,6 +66,7 @@ struct Plugin {
   float* gr = nullptr;
   float* detector = nullptr;
   float* compGr = nullptr;
+  float* limitGr = nullptr;
   float* gate = nullptr;
   float* ghostActive = nullptr;
   float* clipActive = nullptr;
@@ -108,6 +110,7 @@ void connectPort(LV2_Handle handle, uint32_t port, void* data) {
     case PORT_GR: p->gr = static_cast<float*>(data); break;
     case PORT_DETECTOR: p->detector = static_cast<float*>(data); break;
     case PORT_COMP_GR: p->compGr = static_cast<float*>(data); break;
+    case PORT_LIMIT_GR: p->limitGr = static_cast<float*>(data); break;
     case PORT_GATE: p->gate = static_cast<float*>(data); break;
     case PORT_GHOST_ACTIVE: p->ghostActive = static_cast<float*>(data); break;
     case PORT_CLIP_ACTIVE: p->clipActive = static_cast<float*>(data); break;
@@ -193,6 +196,15 @@ void run(LV2_Handle handle, uint32_t frames) {
   if (p->gr) *p->gr = p->meters.grDb;
   if (p->detector) *p->detector = p->meters.detectorDb;
   if (p->compGr) *p->compGr = p->meters.compGrDb;
+  if (p->limitGr) *p->limitGr = p->meters.limitGrDb;
+  p->shared.limitGrDb.store(p->meters.limitGrDb, std::memory_order_relaxed);
+  {
+    const int lh = p->shared.limitHistoryHead.load(std::memory_order_relaxed);
+    p->shared.limitHistory[lh & (drum::Shared::kScopeSize - 1)].store(
+        p->meters.limitGrDb, std::memory_order_relaxed);
+    p->shared.limitHistoryHead.store(
+        (lh + 1) & (drum::Shared::kScopeSize - 1), std::memory_order_relaxed);
+  }
   if (p->gate) *p->gate = p->meters.gate;
   if (p->ghostActive) *p->ghostActive = p->meters.ghostActive ? 1.0f : 0.0f;
   if (p->clipActive) *p->clipActive = p->meters.clipActive ? 1.0f : 0.0f;

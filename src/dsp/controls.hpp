@@ -216,6 +216,14 @@ struct Controls {
   int clipOversample = 1;   // 0 Off, 1 2x, 2 4x
   bool clipAutoGain = true;
 
+  // Limiter.
+  bool limitOn = true;
+  float limitCeiling = 0.967f;   // about -0.4 dB
+  float limitRelease = 0.5f;
+  float limitLookahead = 0.4f;
+  bool limitTruePeak = true;
+  float limitMix = 1.0f;
+
   // Sample loader.
   bool sampleOn = false;
   float sampleLevel = 80.0f;    // 0..100
@@ -243,6 +251,7 @@ struct Meters {
   bool sampleTriggered = false;
   float compGrDb = 0.0f;
   bool clipActive = false;
+  float limitGrDb = 0.0f;
 };
 
 } // namespace drum

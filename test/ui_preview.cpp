@@ -101,6 +101,19 @@ int main(int argc, char** argv) {
       shared.set(P_CLIP_SHAPE, 2.0);
       shared.set(P_CLIP_CEILING, 0.85);
       shared.clipActive.store(true, std::memory_order_relaxed);
+    } else if (page == 6) {
+      shared.set(P_LIMIT_ON, 1.0);
+      shared.set(P_LIMIT_TRUEPEAK, 1.0);
+      shared.limitGrDb.store(2.6f);
+      for (int i = 0; i < Shared::kScopeSize; ++i) {
+        const float t = static_cast<float>(i) / (Shared::kScopeSize - 1);
+        const float hit = std::exp(-std::fabs(t - 0.18f) * 30.0f) +
+                          std::exp(-std::fabs(t - 0.52f) * 34.0f) +
+                          std::exp(-std::fabs(t - 0.82f) * 38.0f);
+        shared.limitHistory[i].store(0.4f + 5.0f * hit,
+                                     std::memory_order_relaxed);
+      }
+      shared.limitHistoryHead.store(0);
     } else if (page == 2) {
       shared.set(P_EQ_LOW, 0.75);
       shared.set(P_EQ_LOW_MID, 0.40);

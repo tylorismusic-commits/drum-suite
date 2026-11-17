@@ -383,7 +383,7 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
 
   if (state.page == 1) {
     // Sample page.
-    pill(P_SAMPLE_ON, 760, 318, 150, 24, "SAMPLE ON");
+    pill(P_SAMPLE_ON, 754, 318, 150, 24, "SAMPLE ON");
     knob(P_SAMPLE_LEVEL, 500, 410, 24, "LEVEL");
     knob(P_SAMPLE_DIRECT, 610, 410, 24, "DIRECT");
     knob(P_SAMPLE_PITCH, 720, 410, 24, "PITCH");
@@ -408,14 +408,14 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
       b.kind = Kind::Button;
       b.param = P_COMP_MODEL;
       b.value = i;
-      b.x = 52.0 + i * 108.0;
+      b.x = 100.0 + i * 108.0;
       b.y = 182.0;
       b.w = 98.0;
       b.h = 28.0;
       b.label = kCompModelLabels[i];
       widgets_.push_back(b);
     }
-    pill(P_COMP_ON, 396, 182, 120, 28, "COMP ON");
+    pill(P_COMP_ON, 444, 182, 120, 28, "COMP ON");
     const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
     knob(P_COMP_THRESHOLD, 170, 445, 26, "THRESHOLD");
     knob(P_COMP_RATIO, 310, 445, 26, model == 1 ? "LIMIT" : "RATIO", {},
@@ -434,15 +434,15 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
       b.kind = Kind::Button;
       b.param = P_DRIVE_MODEL;
       b.value = i;
-      b.x = 52.0 + i * 106.0;
+      b.x = 100.0 + i * 106.0;
       b.y = 182.0;
       b.w = 96.0;
       b.h = 28.0;
       b.label = kDriveModelLabels[i];
       widgets_.push_back(b);
     }
-    pill(P_DRIVE_ON, 592, 182, 110, 28, "DRIVE ON");
-    pill(P_DRIVE_AUTOGAIN, 718, 182, 120, 28, "AUTO GAIN");
+    pill(P_DRIVE_ON, 644, 182, 110, 28, "DRIVE ON");
+    pill(P_DRIVE_AUTOGAIN, 768, 182, 120, 28, "AUTO GAIN");
     knob(P_DRIVE_DRIVE, 150, 465, 28, "DRIVE");
     knob(P_DRIVE_CHARACTER, 300, 465, 28, "CHARACTER");
     knob(P_DRIVE_TONE, 450, 465, 28, "TONE");
@@ -454,23 +454,23 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
       b.kind = Kind::Button;
       b.param = P_CLIP_SHAPE;
       b.value = i;
-      b.x = 52.0 + i * 108.0;
+      b.x = 100.0 + i * 108.0;
       b.y = 182.0;
       b.w = 96.0;
       b.h = 28.0;
       b.label = kClipShapeLabels[i];
       widgets_.push_back(b);
     }
-    pill(P_CLIP_ON, 392, 182, 110, 28, "CLIP ON");
-    pill(P_CLIP_AUTOGAIN, 516, 182, 120, 28, "AUTO GAIN");
+    pill(P_CLIP_ON, 432, 182, 110, 28, "CLIP ON");
+    pill(P_CLIP_AUTOGAIN, 558, 182, 120, 28, "AUTO GAIN");
     for (int i = 0; i < 3; ++i) {
       Widget b{};
       b.kind = Kind::Button;
       b.param = P_CLIP_OVERSAMPLE;
       b.value = i;
-      b.x = 160.0 + i * 76.0;
+      b.x = 180.0 + i * 70.0;
       b.y = 216.0;
-      b.w = 68.0;
+      b.w = 64.0;
       b.h = 24.0;
       b.label = kOversampleLabels[i];
       widgets_.push_back(b);
@@ -478,6 +478,14 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     knob(P_CLIP_DRIVE, 200, 520, 28, "DRIVE");
     knob(P_CLIP_CEILING, 420, 520, 28, "CEILING");
     knob(P_CLIP_MIX, 640, 520, 28, "MIX");
+  } else if (state.page == 6) {
+    // Limiter.
+    pill(P_LIMIT_ON, 100, 182, 110, 28, "LIMIT ON");
+    pill(P_LIMIT_TRUEPEAK, 222, 182, 120, 28, "TRUE PEAK");
+    knob(P_LIMIT_CEILING, 170, 470, 28, "CEILING");
+    knob(P_LIMIT_RELEASE, 340, 470, 28, "RELEASE");
+    knob(P_LIMIT_LOOKAHEAD, 510, 470, 28, "LOOKAHEAD");
+    knob(P_LIMIT_MIX, 680, 470, 28, "MIX");
   }
 
   // Global.  Power is the bypass; the bottom corners are just trim.
@@ -522,7 +530,7 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
   (void)fine;
   if (handlePresetClick(shared, state, x, y)) return true;
   // Sample file list.
-  if (state.page == 1 && x >= 52 && x <= 452 && y >= 230 && y <= 420) {
+  if (state.page == 1 && x >= 100 && x <= 480 && y >= 230 && y <= 420) {
     const int row = static_cast<int>((y - 232) / 23) + state.sampleScroll;
     if (row >= 0 && row < static_cast<int>(state.sampleFiles.size())) {
       loadSample(shared, state, sampleDir() + "/" + state.sampleFiles[row]);
@@ -622,7 +630,7 @@ bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
     state.presetScroll = std::min(maxScroll, std::max(0, state.presetScroll - (int)dy));
     return true;
   }
-  if (state.page == 1 && x >= 52 && x <= 452 && y >= 330 && y <= 600) {
+  if (state.page == 1 && x >= 100 && x <= 480 && y >= 190 && y <= 430) {
     const int maxScroll =
         std::max(0, static_cast<int>(state.sampleFiles.size()) - 8);
     state.sampleScroll =
@@ -655,6 +663,16 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   state.ghostActive = shared.ghostActive.load(std::memory_order_relaxed);
   state.compGrDb = shared.compGrDb.load(std::memory_order_relaxed);
   state.clipActive = shared.clipActive.load(std::memory_order_relaxed);
+  state.limitGrDb = shared.limitGrDb.load(std::memory_order_relaxed);
+  {
+    const int lh = shared.limitHistoryHead.load(std::memory_order_relaxed) &
+                   (Shared::kScopeSize - 1);
+    for (int i = 0; i < Shared::kScopeSize; ++i) {
+      const int idx = (lh + i) & (Shared::kScopeSize - 1);
+      state.limitHistory[i] =
+          shared.limitHistory[idx].load(std::memory_order_relaxed);
+    }
+  }
   {
     const int ch = shared.compHistoryHead.load(std::memory_order_relaxed) &
                    (Shared::kScopeSize - 1);
@@ -701,6 +719,8 @@ void Panel::draw(cairo_t* cr, Shared& shared, const PanelState& state) {
     drawDrivePage(cr, shared, state);
   } else if (state.page == 5) {
     drawClipPage(cr, shared, state);
+  } else if (state.page == 6) {
+    drawLimitPage(cr, shared, state);
   } else {
     drawPlaceholderPage(cr, state.page);
   }
@@ -832,7 +852,7 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
       "COMP  -  76 / 2A / VCA",
       "DRIVE  -  valve / console / bus / tape / transformer",
       "CLIP  -  soft / hard / diode",
-      "LIMIT  -  true-peak safety (next milestone)"};
+      "LIMIT  -  true-peak safety"};
   text(cr, kPageCaptions[std::clamp(page, 0, 6)], kPanelWidth * 0.5, 709, 15,
        1, 0.86, 0.82, 0.76);
 }
@@ -905,7 +925,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   const auto sample = shared.sample();
 
   // Waveform well.
-  const double wx = 470, wy = 190, ww = 500, wh = 118;
+  const double wx = 500, wy = 190, ww = 444, wh = 118;
   roundRect(cr, wx, wy, ww, wh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.38);
   cairo_fill(cr);
@@ -951,7 +971,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
                                      sample->sampleRate
                                : 0.0;
     std::snprintf(info, sizeof(info), "%s   -   48 kHz   -   %.2f s",
-                  clippedName(sample->name, 34).c_str(), seconds);
+                  clippedName(sample->name, 24).c_str(), seconds);
     text(cr, info, wx, wy + wh + 18, 10, 0, skin.legend.r, skin.legend.g,
          skin.legend.b);
   } else {
@@ -962,7 +982,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   }
 
   // File browser.
-  const double bx = 52, by = 190, bw = 400, bh = 240;
+  const double bx = 100, by = 190, bw = 380, bh = 240;
   roundRect(cr, bx, by, bw, bh, 5);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.30);
   cairo_fill(cr);
@@ -1137,7 +1157,7 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
                                0, 2);
 
   // Gain-reduction history.
-  const double gx = 52, gy = 240, gw = 480, gh = 130;
+  const double gx = 100, gy = 240, gw = 432, gh = 130;
   roundRect(cr, gx, gy, gw, gh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
   cairo_fill(cr);
@@ -1150,7 +1170,7 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
     cairo_stroke(cr);
     char label[8];
     std::snprintf(label, sizeof(label), "-%d", db);
-    text(cr, label, gx - 8, y + 3, 8.5, 2, skin.legendDim.r, skin.legendDim.g,
+    text(cr, label, gx + 8, y + 3, 8.5, 0, skin.legendDim.r, skin.legendDim.g,
          skin.legendDim.b);
   }
   setRgb(cr, skin.legendDim, 0.35);
@@ -1179,7 +1199,7 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
        skin.btnOn.b);
 
   // Model card.
-  const double cx = 560, cy = 240, cw = 410, ch = 130;
+  const double cx = 560, cy = 240, cw = 384, ch = 130;
   roundRect(cr, cx, cy, cw, ch, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
   cairo_fill(cr);
@@ -1223,7 +1243,7 @@ void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
   const float character = static_cast<float>(shared.get(P_DRIVE_CHARACTER));
 
   // Transfer curve.
-  const double gx = 52, gy = 240, gw = 480, gh = 130;
+  const double gx = 100, gy = 240, gw = 432, gh = 130;
   roundRect(cr, gx, gy, gw, gh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
   cairo_fill(cr);
@@ -1264,11 +1284,9 @@ void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
        skin.legendDim.b);
   text(cr, "IN", gx + gw, gy + gh + 15, 9, 2, skin.legendDim.r,
        skin.legendDim.g, skin.legendDim.b);
-  text(cr, "OUT", gx, gy - 8, 9, 2, skin.legendDim.r, skin.legendDim.g,
-       skin.legendDim.b);
 
   // Model card.
-  const double cx = 560, cy = 240, cw = 410, ch = 130;
+  const double cx = 560, cy = 240, cw = 384, ch = 130;
   roundRect(cr, cx, cy, cw, ch, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
   cairo_fill(cr);
@@ -1309,14 +1327,14 @@ void Panel::drawClipPage(cairo_t* cr, const Shared& shared,
                             0, 2);
   const float ceiling = clipCeilingDb(static_cast<float>(shared.get(P_CLIP_CEILING)));
 
-  roundRect(cr, 52, 206, 340, 38, 4);
+  roundRect(cr, 100, 206, 340, 38, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.20);
   cairo_fill(cr);
-  text(cr, "OVERSAMPLE", 62, 231, 9, 0, skin.legendDim.r, skin.legendDim.g,
+  text(cr, "OVERSAMPLE", 110, 231, 9, 0, skin.legendDim.r, skin.legendDim.g,
        skin.legendDim.b);
 
   // Transfer curve.
-  const double gx = 52, gy = 270, gw = 480, gh = 130;
+  const double gx = 100, gy = 270, gw = 432, gh = 130;
   roundRect(cr, gx, gy, gw, gh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
   cairo_fill(cr);
@@ -1355,7 +1373,7 @@ void Panel::drawClipPage(cairo_t* cr, const Shared& shared,
        skin.legendDim.g, skin.legendDim.b);
 
   // Card.
-  const double cx = 560, cy = 270, cw = 410, ch = 130;
+  const double cx = 560, cy = 270, cw = 384, ch = 130;
   roundRect(cr, cx, cy, cw, ch, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
   cairo_fill(cr);
@@ -1388,6 +1406,91 @@ void Panel::drawClipPage(cairo_t* cr, const Shared& shared,
        state.clipActive ? 1.0 : skin.legendDim.r,
        state.clipActive ? 0.55 : skin.legendDim.g,
        state.clipActive ? 0.45 : skin.legendDim.b);
+}
+
+void Panel::drawLimitPage(cairo_t* cr, const Shared& shared,
+                          const PanelState& state) const {
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+
+  // Gain-reduction history.
+  const double gx = 100, gy = 240, gw = 432, gh = 130;
+  roundRect(cr, gx, gy, gw, gh, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  for (int db = 0; db <= 24; db += 6) {
+    const double y = gy + gh * db / 24.0;
+    setRgb(cr, skin.legendDim, db == 0 ? 0.30 : 0.14);
+    cairo_move_to(cr, gx, y);
+    cairo_line_to(cr, gx + gw, y);
+    cairo_stroke(cr);
+    char label[8];
+    std::snprintf(label, sizeof(label), "-%d", db);
+    text(cr, label, gx + 8, y + 3, 8.5, 0, skin.legendDim.r, skin.legendDim.g,
+         skin.legendDim.b);
+  }
+  setRgb(cr, skin.legendDim, 0.35);
+  roundRect(cr, gx + 0.5, gy + 0.5, gw - 1.0, gh - 1.0, 4);
+  cairo_stroke(cr);
+
+  const int n = Shared::kScopeSize;
+  const double barW = gw / n;
+  setRgb(cr, skin.btnOn, 0.85);
+  for (int i = 0; i < n; ++i) {
+    const double gr = std::clamp(static_cast<double>(state.limitHistory[i]),
+                                 0.0, 24.0);
+    if (gr < 0.05) continue;
+    const double h = gh * gr / 24.0;
+    cairo_rectangle(cr, gx + i * barW + 0.5, gy + gh - h,
+                    std::max(1.0, barW - 1.0), h);
+    cairo_fill(cr);
+  }
+  text(cr, "LIMITER GAIN REDUCTION", gx + 24, gy - 8, 9, 0, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+  char grText[24];
+  std::snprintf(grText, sizeof(grText), "%.1f dB",
+                std::clamp(state.limitGrDb, 0.0f, 60.0f));
+  text(cr, grText, gx + gw, gy - 8, 11, 2, skin.btnOn.r, skin.btnOn.g,
+       skin.btnOn.b);
+
+  // Safety card.
+  const double cx = 560, cy = 240, cw = 384, ch = 130;
+  roundRect(cr, cx, cy, cw, ch, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.25);
+  roundRect(cr, cx + 0.5, cy + 0.5, cw - 1.0, ch - 1.0, 4);
+  cairo_stroke(cr);
+  text(cr, "TRUE-PEAK", cx + 20, cy + 42, 24, 0, skin.btnOn.r, skin.btnOn.g,
+       skin.btnOn.b);
+  text(cr, "SAFETY LIMITER", cx + 20, cy + 64, 24, 0, skin.btnOn.r,
+       skin.btnOn.g, skin.btnOn.b);
+  char info[128];
+  const float ceiling =
+      -12.0f + 12.0f * static_cast<float>(shared.get(P_LIMIT_CEILING));
+  const float look =
+      0.2f + 1.8f * static_cast<float>(shared.get(P_LIMIT_LOOKAHEAD));
+  std::snprintf(info, sizeof(info), "CEILING %.1f dB   -   LOOK %.2f ms",
+                ceiling, look);
+  text(cr, info, cx + 20, cy + 92, 9, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+  text(cr, shared.get(P_LIMIT_TRUEPEAK) > 0.5 ? "TRUE PEAK 4X"
+                                               : "SAMPLE PEAK",
+       cx + 20, cy + 112, 9, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+  text(cr, "LATENCY 141 + CHAIN", cx + cw - 20, cy + 112, 9, 2,
+       skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+
+  cairo_arc(cr, cx + cw - 30, cy + 36, 7, 0, 2 * kPi);
+  const bool active = state.limitGrDb > 0.1f;
+  setRgb(cr, active ? Rgb{1.0, 0.24, 0.16} : skin.legendDim,
+         active ? 1.0 : 0.30);
+  cairo_fill(cr);
+  text(cr, "GR", cx + cw - 30, cy + 58, 8, 1,
+       active ? 1.0 : skin.legendDim.r, active ? 0.55 : skin.legendDim.g,
+       active ? 0.45 : skin.legendDim.b);
 }
 
 void Panel::drawScope(cairo_t* cr, const Shared& shared,

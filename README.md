@@ -1,10 +1,9 @@
 # Drum Suite
 
-**Version 0.5.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.6.0 — Linux x86_64** · GPL-3.0-or-later
 
-A drum channel strip in the Suite visual language. **Bleed Out**, **Sample**,
-**EQ**, **Comp**, **Drive** and **Clip** are working; Limit follows in the next
-milestone.
+A drum channel strip in the Suite visual language. The whole chain is now
+working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
 
 ![Drum Suite — Bleed Out](docs/kick.png)
 
@@ -24,7 +23,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 | **COMP** | Working: 76 / 2A / VCA models, GR history |
 | **DRIVE** | Working: Valve, Console, Bus, Tape, Transformer + auto gain |
 | **CLIP** | Working: soft / hard / diode, 1x/2x/4x, ceiling and clip LED |
-| **LIMIT** | Scaffolded; true-peak safety next |
+| **LIMIT** | Working: true-peak safety limiter with lookahead and GR history |
 
 The drum selector across the top chooses the profile: **Kick, Snare, Tom, Hat,
 Ride, Room, OH, Bus**. It changes detector focus, gate defaults and sample
@@ -132,6 +131,20 @@ A controllable clipper after the drive stage:
 
 ![Drum Suite — Clip](docs/clip.png)
 
+## Limit
+
+The final safety stage is a lookahead limiter:
+
+- Ceiling −12…0 dB, Release 20…1000 ms, Lookahead 0.2…2 ms.
+- **True Peak** runs 4× oversampled detection; off falls back to sample peaks.
+- Mix blends the limited and dry paths.
+- The detector lookahead changes without moving host delay compensation: the
+  stage always reports 141 samples (2 ms + the half-band filter).
+- Gain-reduction history and a red GR indicator.
+- The whole chain reports 282 samples at 48 kHz (gate + clipper + limiter).
+
+![Drum Suite — Limit](docs/limit.png)
+
 ## Build
 
 Requires CMake 3.16+, a C++20 compiler, Cairo, FreeType, X11 and LV2.
@@ -154,7 +167,7 @@ cmake --install build
 
 ## Status
 
-0.5.0 adds the clipper to the Sample/EQ/Comp/Drive build:
+0.6.0 completes the chain with the limiter:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
@@ -168,11 +181,14 @@ cmake --install build
 - CLIP page: soft/hard/diode shapes, drive, ceiling, mix, 1x/2x/4x
   oversampling, auto gain and a clip LED.
 - Fixed 45-sample clipper latency in every oversampling mode.
-- Placeholder page for Limit.
+- LIMIT page: true-peak lookahead limiter, ceiling, release, lookahead, mix,
+  GR history and a fixed 141-sample stage latency.
+- Every page is inset inside the input/output meter rails.
 - Tests: DSP, sample player, EQ response, compressor models, drive models,
-  clipper shapes/ceiling/latency, panel loading, layout, geometry and TTL.
+  clipper shapes/ceiling/latency, limiter ceiling/GR/true-peak, panel loading,
+  layout, geometry and TTL.
 
-Next: Limit.
+Next: factory presets and release QA.
 
 ## Licence
 

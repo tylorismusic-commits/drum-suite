@@ -60,6 +60,7 @@ constexpr MeterPort kMeters[] = {
     {"gr", "Gain Reduction"},
     {"detector", "Detector"},
     {"comp_gr", "Compressor Gain Reduction"},
+    {"limit_gr", "Limiter Gain Reduction"},
 };
 
 constexpr int kAudioPorts = 4;

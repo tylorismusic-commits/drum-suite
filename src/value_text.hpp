@@ -98,8 +98,16 @@ inline std::string formatParamValue(const Shared& shared, uint32_t id,
     std::snprintf(buf, sizeof(buf), "%+.1f dB", (value - 0.5) * 20.0);
     return buf;
   }
-  if (id == P_CLIP_CEILING) {
+  if (id == P_CLIP_CEILING || id == P_LIMIT_CEILING) {
     std::snprintf(buf, sizeof(buf), "%+.1f dB", -12.0 + 12.0 * value);
+    return buf;
+  }
+  if (id == P_LIMIT_LOOKAHEAD) {
+    std::snprintf(buf, sizeof(buf), "%.2f ms", 0.2 + 1.8 * value);
+    return buf;
+  }
+  if (id == P_LIMIT_RELEASE) {
+    std::snprintf(buf, sizeof(buf), "%.0f ms", 20.0 * std::pow(50.0, value));
     return buf;
   }
   if (id == P_COMP_SC_HPF) {
@@ -153,7 +161,7 @@ inline bool parseParamValue(const Shared&, uint32_t id,
     v = std::log(std::max(v, 500.0) / 500.0) / std::log(40.0);
   } else if (id == P_COMP_MAKEUP) {
     v = v / 20.0 + 0.5;
-  } else if (id == P_CLIP_CEILING) {
+  } else if (id == P_CLIP_CEILING || id == P_LIMIT_CEILING) {
     v = (v + 12.0) / 12.0;
   }
   v = std::min(std::max(v, s.min), s.max);

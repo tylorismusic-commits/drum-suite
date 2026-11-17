@@ -59,6 +59,7 @@ Controls base() {
   c.bypass = false;
   c.compOn = false;
   c.driveOn = false;
+  c.limitOn = false;
   return c;
 }
 
@@ -103,7 +104,7 @@ int main() {
     for (size_t i = 0; i < in.size(); ++i)
       in[i] = 0.25f * std::sin(2.0f * 3.14159265f * 220.0f * i / kSr);
     Render r = run(c, in);
-    const int latency = static_cast<int>(kSr * 0.002f) + 45;  // gate + clip
+    const int latency = static_cast<int>(kSr * 0.002f) + 45 + 141;  // full chain
     float err = 0.0f;
     for (size_t i = latency; i < in.size(); ++i)
       err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
@@ -121,7 +122,7 @@ int main() {
     for (size_t i = 0; i < in.size(); ++i)
       in[i] = 0.25f * std::sin(2.0f * 3.14159265f * 220.0f * i / kSr);
     Render r = run(c, in);
-    const int latency = static_cast<int>(kSr * 0.002f) + 45;
+    const int latency = static_cast<int>(kSr * 0.002f) + 45 + 141;
     float err = 0.0f;
     for (size_t i = latency; i < in.size(); ++i)
       err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
@@ -243,7 +244,7 @@ int main() {
     Render rOff = run(off, in);
     Render rOn = run(on, in);
 
-    const int od = 45;  // clipper latency
+    const int od = 45 + 141;  // clipper + limiter latency
     const int qa = static_cast<int>(kSr * 0.36f) + od;
     const int qb = static_cast<int>(kSr * 0.56f) + od;
     const int aa = static_cast<int>(kSr * 0.100f) + od;  // first 6 ms: attack
@@ -502,7 +503,6 @@ int main() {
     float peak = 0.0f;
     for (size_t i = 2000; i < tone.size(); ++i)
       peak = std::max(peak, std::fabs(hard.l[i]));
-    std::printf("  clip hard peak %.3f (ceiling %.3f)\n", peak, ceil);
     check(peak <= static_cast<float>(ceil * 1.02),
           "hard clip holds the ceiling");
     check(hard.clipSeen, "clip LED reports clipping");
@@ -538,8 +538,53 @@ int main() {
 
     Engine engine;
     engine.prepare(kSr);
-    check(engine.latencySamples() == 141,
-          "gate plus clipper reports 141 samples of latency");
+    check(engine.latencySamples() == 282,
+          "full chain reports 282 samples of latency");
+  }
+
+
+  {
+    // Limiter: the ceiling holds, GR is reported, mix 0 is the delayed dry
+    // path, and the fixed lookahead delay stays in the chain when bypassed.
+    const int n = static_cast<int>(kSr * 0.5f);
+    std::vector<float> tone(n);
+    for (int i = 0; i < n; ++i)
+      tone[i] = 0.9f * std::sin(2.0f * 3.14159265f * 200.0f * i / kSr);
+
+    Controls lim = base();
+    lim.gateOn = false;
+    lim.limitOn = true;
+    lim.limitCeiling = 0.5f;  // -6 dB
+    lim.limitRelease = 0.5f;
+    lim.limitLookahead = 0.5f;
+    lim.limitTruePeak = false;
+    lim.limitMix = 1.0f;
+
+    Render r = run(lim, tone);
+    float peak = 0.0f;
+    for (size_t i = 2000; i < tone.size(); ++i)
+      peak = std::max(peak, std::fabs(r.l[i]));
+    check(peak <= 0.504f, "limiter holds the ceiling");
+    check(r.meters.limitGrDb > 1.0f, "limiter reports gain reduction");
+
+    lim.limitMix = 0.0f;
+    Render dry = run(lim, tone);
+    Controls flat = base();
+    flat.gateOn = false;
+    Render straight = run(flat, tone);
+    float err = 0.0f;
+    for (size_t i = 2000; i < tone.size(); ++i)
+      err = std::max(err, std::fabs(dry.l[i] - straight.l[i]));
+    check(err < 1e-4f, "limiter mix 0 is the latency-aligned dry path");
+
+    lim.limitMix = 1.0f;
+    lim.limitTruePeak = true;
+    Render tp = run(lim, tone);
+    float tpPeak = 0.0f;
+    for (size_t i = 2000; i < tone.size(); ++i)
+      tpPeak = std::max(tpPeak, std::fabs(tp.l[i]));
+    check(finite(tp.l) && tpPeak <= 0.504f,
+          "true-peak limiter holds the ceiling");
   }
 
   std::printf("%d failure(s)\n", gFailures);

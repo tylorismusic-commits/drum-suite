@@ -56,6 +56,11 @@ int main() {
                       page, drum, r.label, r.x, r.y, r.w, r.h);
           onPlate = false;
         }
+        if (r.x < 100.0 - 0.5 || r.x + r.w > 944.0 + 0.5) {
+          std::printf("  page %d drum %d: '%s' at %.0f,%.0f %.0fx%.0f hits a meter\n",
+                      page, drum, r.label, r.x, r.y, r.w, r.h);
+          onPlate = false;
+        }
       }
       char label[128];
       std::snprintf(label, sizeof(label), "page %d drum %d controls sit on the plate",

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 — 2026-11-17
+
+- LIMIT page: true-peak lookahead limiter with ceiling, release, lookahead and
+  mix.
+- 4× oversampled true-peak detection; sample-peak mode when True Peak is off.
+- Fixed 141-sample limiter latency (2 ms lookahead + half-band filter); the
+  full chain reports 282 samples at 48 kHz.
+- Gain-reduction history and GR indicator.
+- Page layouts inset so nothing collides with the input/output meters.
+- Removed the overlapping OUT label on the drive transfer graph.
+- Tests: limiter ceiling, GR, true-peak mode, dry path and chain latency.
+
 ## 0.5.0 — 2026-11-17
 
 - CLIP page with Soft, Hard and Diode shapes.

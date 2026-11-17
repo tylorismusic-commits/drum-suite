@@ -62,6 +62,12 @@ enum ParamId : uint32_t {
   P_CLIP_MIX,
   P_CLIP_OVERSAMPLE,
   P_CLIP_AUTOGAIN,
+  P_LIMIT_ON,
+  P_LIMIT_CEILING,
+  P_LIMIT_RELEASE,
+  P_LIMIT_LOOKAHEAD,
+  P_LIMIT_TRUEPEAK,
+  P_LIMIT_MIX,
   P_COUNT
 };
 
@@ -175,6 +181,17 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      nullptr, labels(kOversampleLabels)},
     {"clip_auto_gain", "Auto Gain", "Clip", 0.0, 1.0, 1.0, true, false, true,
      nullptr, {}},
+    {"limit_on", "Limit On", "Limit", 0.0, 1.0, 1.0, true, false, true, nullptr,
+     {}},
+    {"limit_ceiling", "Ceiling", "Limit", 0.0, 1.0, 0.967, false, false, false,
+     "dB", {}},
+    {"limit_release", "Release", "Limit", 0.0, 1.0, 0.5, false, false, false, "%",
+     {}},
+    {"limit_lookahead", "Lookahead", "Limit", 0.0, 1.0, 0.4, false, false, false,
+     "ms", {}},
+    {"limit_true_peak", "True Peak", "Limit", 0.0, 1.0, 1.0, true, false, true,
+     nullptr, {}},
+    {"limit_mix", "Mix", "Limit", 0.0, 1.0, 1.0, false, false, false, "%", {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -201,6 +218,9 @@ public:
     ghostActive.store(false);
     compGrDb.store(0.0f);
     clipActive.store(false);
+    limitGrDb.store(0.0f);
+    limitHistoryHead.store(0);
+    for (int i = 0; i < kScopeSize; ++i) limitHistory[i].store(0.0f);
     compHistoryHead.store(0);
     scopeHead.store(0);
     for (int i = 0; i < kScopeSize; ++i) {
@@ -265,6 +285,9 @@ public:
   std::atomic<bool> ghostActive;
   std::atomic<float> compGrDb;
   std::atomic<bool> clipActive;
+  std::atomic<float> limitGrDb;
+  std::atomic<float> limitHistory[kScopeSize];
+  std::atomic<int> limitHistoryHead;
   std::atomic<float> compHistory[kScopeSize];
   std::atomic<int> compHistoryHead;
   std::atomic<uint32_t> midiGhostTrigger{0};
@@ -308,6 +331,12 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_CLIP_MIX, cl.mix);
   s.set(P_CLIP_OVERSAMPLE, cl.oversample);
   s.set(P_CLIP_AUTOGAIN, cl.autoGain ? 1.0 : 0.0);
+  s.set(P_LIMIT_ON, 1.0);
+  s.set(P_LIMIT_CEILING, 0.967);
+  s.set(P_LIMIT_RELEASE, 0.5);
+  s.set(P_LIMIT_LOOKAHEAD, 0.4);
+  s.set(P_LIMIT_TRUEPEAK, 1.0);
+  s.set(P_LIMIT_MIX, 1.0);
 }
 
 inline Controls controlsFrom(Shared& s) noexcept {
@@ -363,6 +392,12 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.clipMix = static_cast<float>(s.get(P_CLIP_MIX));
   c.clipOversample = static_cast<int>(s.get(P_CLIP_OVERSAMPLE) + 0.5);
   c.clipAutoGain = s.get(P_CLIP_AUTOGAIN) > 0.5;
+  c.limitOn = s.get(P_LIMIT_ON) > 0.5;
+  c.limitCeiling = static_cast<float>(s.get(P_LIMIT_CEILING));
+  c.limitRelease = static_cast<float>(s.get(P_LIMIT_RELEASE));
+  c.limitLookahead = static_cast<float>(s.get(P_LIMIT_LOOKAHEAD));
+  c.limitTruePeak = s.get(P_LIMIT_TRUEPEAK) > 0.5;
+  c.limitMix = static_cast<float>(s.get(P_LIMIT_MIX));
   return c;
 }
 
