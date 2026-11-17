@@ -1,9 +1,9 @@
 # Drum Suite
 
-**Version 0.2.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.3.0 — Linux x86_64** · GPL-3.0-or-later
 
-A drum channel strip in the Suite visual language. **Bleed Out**, **Sample**
-and **EQ** are working; Comp, Drive, Clip and Limit follow in the next
+A drum channel strip in the Suite visual language. **Bleed Out**, **Sample**,
+**EQ** and **Comp** are working; Drive, Clip and Limit follow in the next
 milestones.
 
 ![Drum Suite — Bleed Out](docs/kick.png)
@@ -21,7 +21,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 | **BLEED OUT** | Working: Threshold, DeBleed, Ghost + scope |
 | **SAMPLE** | Working: 4-voice loader, gate/transient trigger, pitch, start, reverse, choke, fade |
 | **EQ** | Working: low shelf, two peaks, high shelf, HPF/LPF + curve |
-| **COMP** | Scaffolded; 76 / 2A / VCA next |
+| **COMP** | Working: 76 / 2A / VCA models, GR history |
 | **DRIVE** | Scaffolded; Patina colours next |
 | **CLIP** | Scaffolded; soft / hard / diode next |
 | **LIMIT** | Scaffolded; true-peak safety next |
@@ -79,6 +79,26 @@ Four bands plus filters, all after the gate and sample layer:
 
 ![Drum Suite — EQ](docs/eq.png)
 
+## Compressor
+
+Three drum-relevant models from Comp Suite, reusing the same DSP:
+
+- **76** — blue-stripe FET peak limiter; fast and aggressive on kick, snare
+  and toms.
+- **2A** — optical leveler with program-dependent attack and release; the
+  Ratio knob becomes the **Limit** switch above 4:1.
+- **VCA** — clean, stereo-linked bus compressor for room, overheads and the
+  drum bus.
+
+Controls: Threshold, Ratio, Attack, Release (hidden on 2A), Makeup, Mix and
+Sidechain HPF. A gain-reduction history runs above the controls, and the output
+meters show the post-compressor level.
+
+Each drum profile carries its own compressor model and defaults; selecting a
+drum tab therefore changes the compressor as well as the gate.
+
+![Drum Suite — Compressor](docs/comp.png)
+
 ## Build
 
 Requires CMake 3.16+, a C++20 compiler, Cairo, FreeType, X11 and LV2.
@@ -101,18 +121,20 @@ cmake --install build
 
 ## Status
 
-0.2.0 adds the Sample loader and EQ to the 0.1.0 scaffold:
+0.3.0 adds the compressor to the Sample/EQ build:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
 - SAMPLE page: folder browser, waveform, 4 voices, trigger from the gate,
   pitch/start/reverse/choke/fade and direct/sample balance.
 - EQ page: four bands + HPF/LPF with a live curve.
-- Placeholder pages for Comp, Drive, Clip and Limit.
-- Tests: DSP, sample player, EQ response, panel loading, layout, geometry and
-  TTL.
+- COMP page: 76, 2A and VCA models with GR history, makeup, mix and sidechain
+  HPF; per-profile compressor defaults.
+- Placeholder pages for Drive, Clip and Limit.
+- Tests: DSP, sample player, EQ response, compressor models and bypass, panel
+  loading, layout, geometry and TTL.
 
-Next: Comp, then Drive, Clip and Limit.
+Next: Drive, then Clip and Limit.
 
 ## Licence
 

@@ -774,6 +774,14 @@ clap_process_status pluginProcess(const clap_plugin_t* p, const clap_process_t* 
   s->shared.outPeakLDb.store(s->meters.outPeakLDb, std::memory_order_relaxed);
   s->shared.outPeakRDb.store(s->meters.outPeakRDb, std::memory_order_relaxed);
   s->shared.grDb.store(s->meters.grDb, std::memory_order_relaxed);
+  s->shared.compGrDb.store(s->meters.compGrDb, std::memory_order_relaxed);
+  {
+    const int h = s->shared.compHistoryHead.load(std::memory_order_relaxed);
+    s->shared.compHistory[h & (Shared::kScopeSize - 1)].store(
+        s->meters.compGrDb, std::memory_order_relaxed);
+    s->shared.compHistoryHead.store((h + 1) & (Shared::kScopeSize - 1),
+                                    std::memory_order_relaxed);
+  }
   s->shared.detectorDb.store(s->meters.detectorDb, std::memory_order_relaxed);
   s->shared.gate.store(s->meters.gate, std::memory_order_relaxed);
   s->shared.ghostActive.store(s->meters.ghostActive, std::memory_order_relaxed);

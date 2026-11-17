@@ -26,7 +26,8 @@ inline std::string trimText(const std::string& s) {
   return s.substr(a, b - a + 1);
 }
 
-inline std::string formatParamValue(const Shared&, uint32_t id, double value) {
+inline std::string formatParamValue(const Shared& shared, uint32_t id,
+                                   double value) {
   const ParamSpec& s = kParamSpecs[id];
   if (s.labels.count > 0) {
     const int i = std::clamp(static_cast<int>(std::lround(value - s.min)), 0,
@@ -56,6 +57,50 @@ inline std::string formatParamValue(const Shared&, uint32_t id, double value) {
   }
   if (id == P_SAMPLE_PITCH) {
     std::snprintf(buf, sizeof(buf), "%+.1f st", value);
+    return buf;
+  }
+  if (id == P_COMP_RATIO) {
+    const int step = std::clamp(static_cast<int>(std::lround(value)), 0, 8);
+    static const float kRatios[9] = {1.5f, 2.0f, 3.0f, 4.0f, 6.0f,
+                                     8.0f, 12.0f, 20.0f, 20.0f};
+    const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
+    if (model == 1 && step >= 4) {
+      return "Limit";
+    }
+    if (step >= 8) {
+      return "All buttons";
+    }
+    std::snprintf(buf, sizeof(buf), "%.1f:1", kRatios[step]);
+    return buf;
+  }
+  if (id == P_COMP_ATTACK || id == P_COMP_RELEASE) {
+    const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
+    if (model == 1) {
+      return "Program";
+    }
+    float ms = 0.0f;
+    if (id == P_COMP_ATTACK) {
+      ms = model == 0
+               ? 0.04f * std::pow(40.0f,
+                                   std::round(value * 6.0f) / 6.0f)
+               : 0.1f * std::pow(300.0f, static_cast<float>(value));
+    } else {
+      ms = model == 0
+               ? 50.0f * std::pow(22.0f,
+                                   std::round(value * 6.0f) / 6.0f)
+               : 100.0f * std::pow(12.0f, static_cast<float>(value));
+    }
+    if (ms < 10.0f) std::snprintf(buf, sizeof(buf), "%.1f ms", ms);
+    else std::snprintf(buf, sizeof(buf), "%.0f ms", ms);
+    return buf;
+  }
+  if (id == P_COMP_MAKEUP) {
+    std::snprintf(buf, sizeof(buf), "%+.1f dB", (value - 0.5) * 20.0);
+    return buf;
+  }
+  if (id == P_COMP_SC_HPF) {
+    std::snprintf(buf, sizeof(buf), "%.0f Hz",
+                  20.0 * std::pow(20.0, value));
     return buf;
   }
   if (s.unit && std::strcmp(s.unit, "dB") == 0) {
@@ -102,6 +147,8 @@ inline bool parseParamValue(const Shared&, uint32_t id,
     v = std::log(std::max(v, 20.0) / 20.0) / std::log(25.0);
   } else if (id == P_EQ_LPF) {
     v = std::log(std::max(v, 500.0) / 500.0) / std::log(40.0);
+  } else if (id == P_COMP_MAKEUP) {
+    v = v / 20.0 + 0.5;
   }
   v = std::min(std::max(v, s.min), s.max);
   *out = v;

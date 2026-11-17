@@ -39,6 +39,15 @@ enum ParamId : uint32_t {
   P_EQ_HIGH,
   P_EQ_HPF,
   P_EQ_LPF,
+  P_COMP_ON,
+  P_COMP_MODEL,
+  P_COMP_THRESHOLD,
+  P_COMP_RATIO,
+  P_COMP_ATTACK,
+  P_COMP_RELEASE,
+  P_COMP_MAKEUP,
+  P_COMP_MIX,
+  P_COMP_SC_HPF,
   P_COUNT
 };
 
@@ -117,6 +126,18 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"eq_high", "High", "EQ", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
     {"eq_hpf", "HPF", "EQ", 0.0, 1.0, 0.0, false, false, false, "Hz", {}},
     {"eq_lpf", "LPF", "EQ", 0.0, 1.0, 1.0, false, false, false, "Hz", {}},
+    {"comp_on", "Comp On", "Comp", 0.0, 1.0, 1.0, true, false, true, nullptr, {}},
+    {"comp_model", "Model", "Comp", 0.0, 2.0, 0.0, true, false, false, nullptr,
+     labels(kCompModelLabels)},
+    {"comp_threshold", "Threshold", "Comp", -40.0, 0.0, -22.0, false, false,
+     false, "dB", {}},
+    {"comp_ratio", "Ratio", "Comp", 0.0, 8.0, 4.0, true, false, false, nullptr, {}},
+    {"comp_attack", "Attack", "Comp", 0.0, 1.0, 0.25, false, false, false, "%", {}},
+    {"comp_release", "Release", "Comp", 0.0, 1.0, 0.35, false, false, false, "%", {}},
+    {"comp_makeup", "Makeup", "Comp", 0.0, 1.0, 0.5, false, false, false, "dB", {}},
+    {"comp_mix", "Mix", "Comp", 0.0, 1.0, 1.0, false, false, false, "%", {}},
+    {"comp_sc_hpf", "SC HPF", "Comp", 0.0, 1.0, 0.05, false, false, false, "Hz",
+     {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -141,10 +162,13 @@ public:
     detectorDb.store(-120.0f);
     gate.store(1.0f);
     ghostActive.store(false);
+    compGrDb.store(0.0f);
+    compHistoryHead.store(0);
     scopeHead.store(0);
     for (int i = 0; i < kScopeSize; ++i) {
       scopeIn[i].store(-120.0f);
       scopeGate[i].store(0.0f);
+      compHistory[i].store(0.0f);
     }
   }
 
@@ -201,6 +225,9 @@ public:
   std::atomic<float> outPeakLDb, outPeakRDb;
   std::atomic<float> grDb, detectorDb, gate;
   std::atomic<bool> ghostActive;
+  std::atomic<float> compGrDb;
+  std::atomic<float> compHistory[kScopeSize];
+  std::atomic<int> compHistoryHead;
   std::atomic<uint32_t> midiGhostTrigger{0};
   std::atomic<float> scopeIn[kScopeSize];
   std::atomic<float> scopeGate[kScopeSize];
@@ -218,6 +245,15 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   // with its cached parameter values.
   s.set(P_THRESHOLD, kProfiles[drum].thresholdDb);
   s.set(P_DEBLEED, kProfiles[drum].deBleed);
+  const CompDefaults& c = kCompDefaults[drum];
+  s.set(P_COMP_MODEL, c.model);
+  s.set(P_COMP_THRESHOLD, c.thresholdDb);
+  s.set(P_COMP_RATIO, c.ratio);
+  s.set(P_COMP_ATTACK, c.attack);
+  s.set(P_COMP_RELEASE, c.release);
+  s.set(P_COMP_MAKEUP, c.makeup);
+  s.set(P_COMP_MIX, c.mix);
+  s.set(P_COMP_SC_HPF, c.scHpf);
 }
 
 inline Controls controlsFrom(Shared& s) noexcept {
@@ -250,6 +286,15 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.eqHigh = static_cast<float>(s.get(P_EQ_HIGH));
   c.eqHpf = static_cast<float>(s.get(P_EQ_HPF));
   c.eqLpf = static_cast<float>(s.get(P_EQ_LPF));
+  c.compOn = s.get(P_COMP_ON) > 0.5;
+  c.compModel = static_cast<int>(s.get(P_COMP_MODEL) + 0.5);
+  c.compThresholdDb = static_cast<float>(s.get(P_COMP_THRESHOLD));
+  c.compRatio = static_cast<float>(s.get(P_COMP_RATIO));
+  c.compAttack = static_cast<float>(s.get(P_COMP_ATTACK));
+  c.compRelease = static_cast<float>(s.get(P_COMP_RELEASE));
+  c.compMakeup = static_cast<float>(s.get(P_COMP_MAKEUP));
+  c.compMix = static_cast<float>(s.get(P_COMP_MIX));
+  c.compScHpf = static_cast<float>(s.get(P_COMP_SC_HPF));
   return c;
 }
 

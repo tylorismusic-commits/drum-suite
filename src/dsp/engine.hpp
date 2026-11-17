@@ -12,6 +12,7 @@
 #include <hdsp/db.hpp>
 
 #include "bleedout.hpp"
+#include "compressor.hpp"
 #include "controls.hpp"
 #include "sample_player.hpp"
 
@@ -23,6 +24,7 @@ public:
     sr_ = sampleRate > 0.0f ? sampleRate : 48000.0f;
     gate_.prepare(sr_);
     samplePlayer_.prepare(sr_);
+    comp_.prepare(sr_);
     maxBlock_ = std::max(1024, maxBlock > 0 ? maxBlock : 8192);
     triggers_.assign(static_cast<size_t>(maxBlock_), 0);
     applyEq(controls_);
@@ -35,6 +37,7 @@ public:
     gate_.setControls(c);
     samplePlayer_.setControls(c);
     applyEq(c);
+    comp_.setControls(c);
   }
 
   void setSample(std::shared_ptr<const SampleBuffer> sample) noexcept {
@@ -50,10 +53,24 @@ public:
       const int n = std::min(frames - offset, maxBlock_);
       std::fill(triggers_.begin(), triggers_.begin() + n, 0);
       gate_.process(left + offset, right + offset, n, meters, triggers_.data());
+      float peakL = 0.0f, peakR = 0.0f;
+      if (controls_.bypass) {
+        meters.sampleVoices = 0;
+        meters.sampleTriggered = false;
+        meters.compGrDb = 0.0f;
+        for (int i = offset; i < offset + n; ++i) {
+          peakL = std::max(peakL, std::fabs(left[i]));
+          peakR = std::max(peakR, std::fabs(right[i]));
+        }
+        meters.outPeakLDb = hdsp::gainToDb(peakL);
+        meters.outPeakRDb = hdsp::gainToDb(peakR);
+        meters.outPeakDb = std::max(meters.outPeakLDb, meters.outPeakRDb);
+        offset += n;
+        continue;
+      }
       samplePlayer_.process(left + offset, right + offset, triggers_.data(), n,
                             meters);
 
-      float peakL = 0.0f, peakR = 0.0f;
       for (int i = offset; i < offset + n; ++i) {
         float l = left[i];
         float r = right[i];
@@ -62,8 +79,6 @@ public:
           if (!std::isfinite(r)) r = 0.0f;
           left[i] = l;
           right[i] = r;
-          peakL = std::max(peakL, std::fabs(l));
-          peakR = std::max(peakR, std::fabs(r));
           continue;
         }
         l = eqLowL_.process(l);
@@ -82,8 +97,11 @@ public:
         if (!std::isfinite(r)) r = 0.0f;
         left[i] = l;
         right[i] = r;
-        peakL = std::max(peakL, std::fabs(l));
-        peakR = std::max(peakR, std::fabs(r));
+      }
+      comp_.process(left + offset, right + offset, n, meters);
+      for (int i = offset; i < offset + n; ++i) {
+        peakL = std::max(peakL, std::fabs(left[i]));
+        peakR = std::max(peakR, std::fabs(right[i]));
       }
       meters.outPeakLDb = hdsp::gainToDb(peakL);
       meters.outPeakRDb = hdsp::gainToDb(peakR);
@@ -95,6 +113,7 @@ public:
   void reset() noexcept {
     gate_.reset();
     samplePlayer_.reset();
+    comp_.reset();
     eqLowL_.reset();
     eqLowR_.reset();
     eqLowMidL_.reset();
@@ -151,6 +170,7 @@ private:
   Controls controls_{};
   BleedOut gate_;
   SamplePlayer samplePlayer_;
+  Compressor comp_;
   std::shared_ptr<const SampleBuffer> loadedSample_;
   std::vector<uint8_t> triggers_;
   bool eqFlat_ = true;

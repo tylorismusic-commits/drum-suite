@@ -31,6 +31,8 @@ struct PanelState {
   bool ghostActive = false;
   float scopeIn[Shared::kScopeSize] = {};
   float scopeGate[Shared::kScopeSize] = {};
+  float compGrDb = 0.0f;
+  float compHistory[Shared::kScopeSize] = {};
   std::vector<std::string> sampleFiles;
   int sampleScroll = 0;
   int sampleScanTicks = 60;
@@ -118,6 +120,8 @@ private:
                       const PanelState& state) const;
   void drawEqPage(cairo_t* cr, const Shared& shared,
                   const PanelState& state) const;
+  void drawCompPage(cairo_t* cr, const Shared& shared,
+                    const PanelState& state) const;
   void updateWaveCache(const std::shared_ptr<const SampleBuffer>& sample,
                        int cols) const;
   bool loadSample(Shared& shared, PanelState& state,

@@ -34,6 +34,7 @@ enum Port : uint32_t {
   PORT_OUT_PEAK,
   PORT_GR,
   PORT_DETECTOR,
+  PORT_COMP_GR,
   PORT_GATE,
   PORT_GHOST_ACTIVE,
   PORT_LATENCY,
@@ -62,6 +63,7 @@ struct Plugin {
   float* outPeak = nullptr;
   float* gr = nullptr;
   float* detector = nullptr;
+  float* compGr = nullptr;
   float* gate = nullptr;
   float* ghostActive = nullptr;
   float* latency = nullptr;
@@ -103,6 +105,7 @@ void connectPort(LV2_Handle handle, uint32_t port, void* data) {
     case PORT_OUT_PEAK: p->outPeak = static_cast<float*>(data); break;
     case PORT_GR: p->gr = static_cast<float*>(data); break;
     case PORT_DETECTOR: p->detector = static_cast<float*>(data); break;
+    case PORT_COMP_GR: p->compGr = static_cast<float*>(data); break;
     case PORT_GATE: p->gate = static_cast<float*>(data); break;
     case PORT_GHOST_ACTIVE: p->ghostActive = static_cast<float*>(data); break;
     case PORT_LATENCY: p->latency = static_cast<float*>(data); break;
@@ -186,6 +189,7 @@ void run(LV2_Handle handle, uint32_t frames) {
   if (p->outPeak) *p->outPeak = p->meters.outPeakDb;
   if (p->gr) *p->gr = p->meters.grDb;
   if (p->detector) *p->detector = p->meters.detectorDb;
+  if (p->compGr) *p->compGr = p->meters.compGrDb;
   if (p->gate) *p->gate = p->meters.gate;
   if (p->ghostActive) *p->ghostActive = p->meters.ghostActive ? 1.0f : 0.0f;
   if (p->latency) *p->latency = static_cast<float>(p->engine.latencySamples());
@@ -194,6 +198,14 @@ void run(LV2_Handle handle, uint32_t frames) {
                    (drum::Shared::kScopeSize - 1);
   p->shared.scopeIn[head].store(p->meters.inPeakDb, std::memory_order_relaxed);
   p->shared.scopeGate[head].store(p->meters.gate, std::memory_order_relaxed);
+  p->shared.compGrDb.store(p->meters.compGrDb, std::memory_order_relaxed);
+  {
+    const int ch = p->shared.compHistoryHead.load(std::memory_order_relaxed);
+    p->shared.compHistory[ch & (drum::Shared::kScopeSize - 1)].store(
+        p->meters.compGrDb, std::memory_order_relaxed);
+    p->shared.compHistoryHead.store((ch + 1) & (drum::Shared::kScopeSize - 1),
+                                    std::memory_order_relaxed);
+  }
   p->shared.scopeHead.store((head + 1) & (drum::Shared::kScopeSize - 1),
                             std::memory_order_relaxed);
 }

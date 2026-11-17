@@ -24,7 +24,7 @@
     ] ;
     doap:homepage <https://github.com/tylorismusic-commits/drum-suite> ;
     lv2:majorVersion 0 ;
-    lv2:minorVersion 2 ;
+    lv2:minorVersion 3 ;
     lv2:microVersion 0 ;
     lv2:binary <drum_suite.so> ;
     rdfs:seeAlso <manifest.ttl> ;
@@ -88,7 +88,7 @@
         lv2:default 0 ;
         lv2:minimum -18 ;
         lv2:maximum 18 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#global> ;
     ] ,
     [
@@ -99,7 +99,7 @@
         lv2:default 0 ;
         lv2:minimum -18 ;
         lv2:maximum 18 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#global> ;
     ] ,
     [
@@ -141,7 +141,7 @@
         lv2:default -30 ;
         lv2:minimum -60 ;
         lv2:maximum 0 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#gate> ;
     ] ,
     [
@@ -152,7 +152,7 @@
         lv2:default 70 ;
         lv2:minimum 0 ;
         lv2:maximum 100 ;
-        units:unit units:% ;
+        units:unit units:pc ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#gate> ;
     ] ,
     [
@@ -175,7 +175,7 @@
         lv2:default 75 ;
         lv2:minimum 0 ;
         lv2:maximum 100 ;
-        units:unit units:% ;
+        units:unit units:pc ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#ghost> ;
     ] ,
     [
@@ -220,7 +220,7 @@
         lv2:default 80 ;
         lv2:minimum 0 ;
         lv2:maximum 100 ;
-        units:unit units:% ;
+        units:unit units:pc ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
     ] ,
     [
@@ -231,7 +231,7 @@
         lv2:default 100 ;
         lv2:minimum 0 ;
         lv2:maximum 100 ;
-        units:unit units:% ;
+        units:unit units:pc ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
     ] ,
     [
@@ -242,7 +242,7 @@
         lv2:default 0 ;
         lv2:minimum -24 ;
         lv2:maximum 24 ;
-        units:unit units:st ;
+        units:unit units:semitone12TET ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
     ] ,
     [
@@ -253,7 +253,7 @@
         lv2:default 0 ;
         lv2:minimum 0 ;
         lv2:maximum 100 ;
-        units:unit units:% ;
+        units:unit units:pc ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
     ] ,
     [
@@ -313,7 +313,7 @@
         lv2:default 0.5 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
     ] ,
     [
@@ -324,7 +324,7 @@
         lv2:default 0.5 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
     ] ,
     [
@@ -335,7 +335,7 @@
         lv2:default 0.5 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
     ] ,
     [
@@ -346,7 +346,7 @@
         lv2:default 0.5 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
-        units:unit units:dB ;
+        units:unit units:db ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
     ] ,
     [
@@ -357,7 +357,7 @@
         lv2:default 0 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
-        units:unit units:Hz ;
+        units:unit units:hz ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
     ] ,
     [
@@ -368,108 +368,214 @@
         lv2:default 1 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
-        units:unit units:Hz ;
+        units:unit units:hz ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#eq> ;
     ] ,
     [
-        a lv2:OutputPort , lv2:ControlPort ;
+        a lv2:InputPort , lv2:ControlPort ;
         lv2:index 31 ;
+        lv2:symbol "comp_on" ;
+        lv2:name "Comp On" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:toggled true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 32 ;
+        lv2:symbol "comp_model" ;
+        lv2:name "Model" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
+        lv2:integer true ;
+        lv2:scalePoint [ rdf:value 0 ; rdfs:label "76" ] ,
+            [ rdf:value 1 ; rdfs:label "2A" ] ,
+            [ rdf:value 2 ; rdfs:label "VCA" ] ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 33 ;
+        lv2:symbol "comp_threshold" ;
+        lv2:name "Threshold" ;
+        lv2:default -22 ;
+        lv2:minimum -40 ;
+        lv2:maximum 0 ;
+        units:unit units:db ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 34 ;
+        lv2:symbol "comp_ratio" ;
+        lv2:name "Ratio" ;
+        lv2:default 4 ;
+        lv2:minimum 0 ;
+        lv2:maximum 8 ;
+        lv2:integer true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 35 ;
+        lv2:symbol "comp_attack" ;
+        lv2:name "Attack" ;
+        lv2:default 0.25 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:pc ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 36 ;
+        lv2:symbol "comp_release" ;
+        lv2:name "Release" ;
+        lv2:default 0.35 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:pc ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 37 ;
+        lv2:symbol "comp_makeup" ;
+        lv2:name "Makeup" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:db ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 38 ;
+        lv2:symbol "comp_mix" ;
+        lv2:name "Mix" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:pc ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 39 ;
+        lv2:symbol "comp_sc_hpf" ;
+        lv2:name "SC HPF" ;
+        lv2:default 0.05 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:hz ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#comp> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 40 ;
         lv2:symbol "in_peak_l" ;
         lv2:name "Input Peak Left" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 32 ;
+        lv2:index 41 ;
         lv2:symbol "in_peak_r" ;
         lv2:name "Input Peak Right" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 33 ;
+        lv2:index 42 ;
         lv2:symbol "out_peak_l" ;
         lv2:name "Output Peak Left" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 34 ;
+        lv2:index 43 ;
         lv2:symbol "out_peak_r" ;
         lv2:name "Output Peak Right" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 35 ;
+        lv2:index 44 ;
         lv2:symbol "in_peak" ;
         lv2:name "Input Peak" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 36 ;
+        lv2:index 45 ;
         lv2:symbol "out_peak" ;
         lv2:name "Output Peak" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 37 ;
+        lv2:index 46 ;
         lv2:symbol "gr" ;
         lv2:name "Gain Reduction" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 38 ;
+        lv2:index 47 ;
         lv2:symbol "detector" ;
         lv2:name "Detector" ;
         lv2:default 0 ;
         lv2:minimum -120 ;
         lv2:maximum 24 ;
-        units:unit units:db ;
         lv2:portProperty pprops:notOnGUI ;
         pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 39 ;
+        lv2:index 48 ;
+        lv2:symbol "comp_gr" ;
+        lv2:name "Compressor Gain Reduction" ;
+        lv2:default 0 ;
+        lv2:minimum -120 ;
+        lv2:maximum 24 ;
+        lv2:portProperty pprops:notOnGUI ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 49 ;
         lv2:symbol "gate" ;
         lv2:name "Gate" ;
         lv2:default 1 ;
@@ -480,7 +586,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 40 ;
+        lv2:index 50 ;
         lv2:symbol "ghost_active" ;
         lv2:name "Ghost Active" ;
         lv2:default 0 ;
@@ -492,7 +598,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 41 ;
+        lv2:index 51 ;
         lv2:symbol "latency" ;
         lv2:name "Latency" ;
         lv2:default 0 ;
@@ -504,7 +610,7 @@
     ] ,
     [
         a atom:AtomPort , lv2:InputPort ;
-        lv2:index 42 ;
+        lv2:index 52 ;
         lv2:symbol "midi_in" ;
         lv2:name "MIDI In" ;
         atom:bufferType atom:Sequence ;
@@ -526,6 +632,8 @@
 <https://github.com/tylorismusic-commits/drum-suite#sample> a pg:Group ; lv2:name "Sample" .
 
 <https://github.com/tylorismusic-commits/drum-suite#eq> a pg:Group ; lv2:name "EQ" .
+
+<https://github.com/tylorismusic-commits/drum-suite#comp> a pg:Group ; lv2:name "Comp" .
 
 <https://github.com/tylorismusic-commits/drum-suite#meter> a pg:Group ; lv2:name "Meter" .
 

@@ -84,6 +84,18 @@ int main(int argc, char** argv) {
     fakeScope(shared, 1.0f);
     if (page == 1) {
       loadPreviewSample(shared);
+    } else if (page == 3) {
+      if (std::getenv("DRUM_PREVIEW_2A")) shared.set(P_COMP_MODEL, 1);
+      shared.compGrDb.store(6.4f);
+      for (int i = 0; i < Shared::kScopeSize; ++i) {
+        const float t = static_cast<float>(i) / (Shared::kScopeSize - 1);
+        const float hit = std::exp(-std::fabs(t - 0.22f) * 26.0f) +
+                          std::exp(-std::fabs(t - 0.58f) * 30.0f) +
+                          std::exp(-std::fabs(t - 0.86f) * 36.0f);
+        shared.compHistory[i].store(1.0f + 15.0f * hit,
+                                    std::memory_order_relaxed);
+      }
+      shared.compHistoryHead.store(0);
     } else if (page == 2) {
       shared.set(P_EQ_LOW, 0.75);
       shared.set(P_EQ_LOW_MID, 0.40);

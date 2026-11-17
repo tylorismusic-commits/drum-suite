@@ -360,8 +360,26 @@ void uiPortEvent(LV2UI_Handle handle, uint32_t port, uint32_t size,
     case kMeterBase + 5: ui->shared.outPeakDb.store(v); break;
     case kMeterBase + 6: ui->shared.grDb.store(v); break;
     case kMeterBase + 7: ui->shared.detectorDb.store(v); break;
-    case kMeterBase + 8: ui->shared.gate.store(v); break;
-    case kMeterBase + 9: ui->shared.ghostActive.store(v > 0.5f); break;
+    case kMeterBase + 8: {
+      ui->shared.compGrDb.store(v);
+      const int h = ui->shared.compHistoryHead.load(std::memory_order_relaxed);
+      ui->shared.compHistory[h & (drum::Shared::kScopeSize - 1)].store(v);
+      ui->shared.compHistoryHead.store(
+          (h + 1) & (drum::Shared::kScopeSize - 1), std::memory_order_relaxed);
+      break;
+    }
+    case kMeterBase + 9: {
+      ui->shared.gate.store(v);
+      const int h = ui->shared.scopeHead.load(std::memory_order_relaxed) &
+                    (drum::Shared::kScopeSize - 1);
+      ui->shared.scopeIn[h].store(
+          ui->shared.inPeakDb.load(std::memory_order_relaxed));
+      ui->shared.scopeGate[h].store(v);
+      ui->shared.scopeHead.store((h + 1) & (drum::Shared::kScopeSize - 1),
+                                 std::memory_order_relaxed);
+      break;
+    }
+    case kMeterBase + 10: ui->shared.ghostActive.store(v > 0.5f); break;
     default: break;
   }
 }

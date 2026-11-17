@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — 2026-11-17
+
+- COMP page with 76, 2A and VCA models reused from Comp Suite.
+- Threshold, Ratio, Attack, Release, Makeup, Mix and sidechain HPF.
+- 2A hides attack/release and turns the ratio control into the Limit switch.
+- Gain-reduction history and current GR readout.
+- Per-profile compressor model and defaults.
+- Global bypass now skips sample, EQ and compressor as well as the gate.
+- Presets now apply their drum profile's compressor defaults as well as gate
+  defaults.
+- LV2 TTL uses valid unit URIs (dB, Hz, percent).
+- Tests: all three compressor models, GR reporting, mix bypass and makeup.
+
 ## 0.2.0 — 2026-11-17
 
 - Sample page: WAV folder browser, waveform, 4-voice one-shot player.

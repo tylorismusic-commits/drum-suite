@@ -108,6 +108,40 @@ int main() {
     panel.pointerDown(shared, state, 97, 87, false);
     panel.pointerUp();
     check(state.page == 0, "Bleed Out page tab returns to the Bleed Out page");
+
+    // Comp page: model tabs and model-specific layout.
+    panel.pointerDown(shared, state, 520, 87, false);
+    panel.pointerUp();
+    check(state.page == 3, "Comp page tab selects the Comp page");
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 211, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_COMP_MODEL) == 1.0, "2A model tab selects the 2A");
+    panel.draw(cr, shared, state);
+    bool hasAttack = false;
+    for (const auto& r : panel.widgetRects()) {
+      if (r.knob && r.param == P_COMP_ATTACK) hasAttack = true;
+    }
+    check(!hasAttack, "2A hides the attack knob");
+    panel.pointerDown(shared, state, 101, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_COMP_MODEL) == 0.0, "76 model tab selects the 76");
+    panel.draw(cr, shared, state);
+    hasAttack = false;
+    for (const auto& r : panel.widgetRects()) {
+      if (r.knob && r.param == P_COMP_ATTACK) hasAttack = true;
+    }
+    check(hasAttack, "76 shows the attack knob");
+
+    // Drum profiles carry compressor defaults.
+    panel.pointerDown(shared, state, 458, 131, false);
+    panel.pointerUp();
+    check(shared.get(P_DRUM) == 3.0 && shared.get(P_COMP_MODEL) == 1.0,
+          "Hat profile selects the 2A compressor");
+    panel.pointerDown(shared, state, 88, 131, false);
+    panel.pointerUp();
+    check(shared.get(P_DRUM) == 0.0 && shared.get(P_COMP_MODEL) == 0.0,
+          "Kick profile selects the 76 compressor");
   }
 
   {
@@ -160,6 +194,17 @@ int main() {
       check(shared.get(P_GHOST_MODE) == 1.0, "Ghost Notes enables ghost mode");
       check(shared.get(P_DRUM) == 1.0, "Ghost Notes selects Snare");
     }
+    int busPreset = -1;
+    for (int i = 0; i < kPresetCount; ++i) {
+      if (std::string(kPresets[i].name).find("Bus") != std::string::npos)
+        busPreset = i;
+    }
+    check(busPreset >= 0, "Bus preset exists");
+    if (busPreset >= 0) {
+      panel.applyPreset(shared, state, busPreset);
+      check(shared.get(P_COMP_MODEL) == 2.0,
+            "Bus preset applies the VCA compressor profile");
+    }
   }
 
   {
@@ -180,6 +225,12 @@ int main() {
     check(parseParamValue(shared, P_EQ_LPF, "10000 Hz", &v) &&
               std::fabs(eqLpfHz(static_cast<float>(v)) - 10000.0) < 2.0,
           "typed LPF accepts 10 kHz");
+    check(parseParamValue(shared, P_COMP_RATIO, "8:1", &v) &&
+              std::fabs(v - 8.0) < 1e-9,
+          "typed compressor ratio accepts 8:1");
+    check(parseParamValue(shared, P_COMP_MAKEUP, "+6 dB", &v) &&
+              std::fabs(v - 0.8) < 1e-9,
+          "typed compressor makeup accepts +6 dB");
   }
 
   cairo_destroy(cr);

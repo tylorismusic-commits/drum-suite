@@ -72,6 +72,30 @@ inline constexpr Profile kProfiles[8] = {
 
 inline constexpr int kDrumCount = 8;
 
+inline constexpr const char* kCompModelLabels[] = {"76", "2A", "VCA"};
+
+struct CompDefaults {
+  int model;
+  float thresholdDb;
+  float ratio;
+  float attack;
+  float release;
+  float makeup;
+  float mix;
+  float scHpf;
+};
+
+inline constexpr CompDefaults kCompDefaults[8] = {
+    {0, -22.0f, 4.0f, 0.25f, 0.35f, 0.50f, 1.00f, 0.05f},  // Kick
+    {0, -20.0f, 5.0f, 0.15f, 0.40f, 0.55f, 0.85f, 0.25f},  // Snare
+    {0, -24.0f, 3.0f, 0.30f, 0.45f, 0.50f, 0.90f, 0.20f},  // Tom
+    {1, -26.0f, 2.0f, 0.50f, 0.50f, 0.55f, 0.70f, 0.60f},  // Hat
+    {1, -24.0f, 2.0f, 0.50f, 0.50f, 0.50f, 0.70f, 0.60f},  // Ride
+    {2, -22.0f, 3.0f, 0.35f, 0.55f, 0.50f, 1.00f, 0.65f},  // Room
+    {2, -20.0f, 3.0f, 0.30f, 0.50f, 0.50f, 0.90f, 0.55f},  // OH
+    {2, -18.0f, 4.0f, 0.40f, 0.60f, 0.50f, 1.00f, 0.70f},  // Bus
+};
+
 inline float eqHpfHz(float v) noexcept {
   v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
   return 20.0f * std::pow(25.0f, v);
@@ -118,6 +142,17 @@ struct Controls {
   float eqHpf = 0.0f;
   float eqLpf = 1.0f;
 
+  // Compressor.
+  bool compOn = true;
+  int compModel = 0;  // 0 76, 1 2A, 2 VCA
+  float compThresholdDb = -20.0f;
+  float compRatio = 4.0f;   // 0..8 ladder
+  float compAttack = 0.3f;  // 0..1
+  float compRelease = 0.5f; // 0..1
+  float compMakeup = 0.5f;  // 0.5 = unity
+  float compMix = 1.0f;
+  float compScHpf = 0.3f;
+
   // Sample loader.
   bool sampleOn = false;
   float sampleLevel = 80.0f;    // 0..100
@@ -143,6 +178,7 @@ struct Meters {
   bool ghostActive = false;
   int sampleVoices = 0;
   bool sampleTriggered = false;
+  float compGrDb = 0.0f;
 };
 
 } // namespace drum

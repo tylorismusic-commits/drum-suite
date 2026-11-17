@@ -59,6 +59,7 @@ constexpr MeterPort kMeters[] = {
     {"out_peak", "Output Peak"},
     {"gr", "Gain Reduction"},
     {"detector", "Detector"},
+    {"comp_gr", "Compressor Gain Reduction"},
 };
 
 constexpr int kAudioPorts = 4;
@@ -143,8 +144,16 @@ std::string portBlock(int index, const char* symbol, const char* name,
     }
     out << " ;\n";
   }
+  const char* unitUri = nullptr;
   if (unit) {
-    out << "        units:unit units:" << unit << " ;\n";
+    if (std::strcmp(unit, "dB") == 0) unitUri = "db";
+    else if (std::strcmp(unit, "Hz") == 0) unitUri = "hz";
+    else if (std::strcmp(unit, "%") == 0) unitUri = "pc";
+    else if (std::strcmp(unit, "ms") == 0) unitUri = "ms";
+    else if (std::strcmp(unit, "st") == 0) unitUri = "semitone12TET";
+  }
+  if (unitUri) {
+    out << "        units:unit units:" << unitUri << " ;\n";
   }
   if (output) {
     // Meters are not user controls; keep generic UIs from rendering sliders.

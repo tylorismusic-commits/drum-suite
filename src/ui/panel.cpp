@@ -399,6 +399,32 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     knob(P_EQ_HIGH, 550, 535, 26, "HIGH");
     knob(P_EQ_HPF, 680, 535, 24, "HPF");
     knob(P_EQ_LPF, 800, 535, 24, "LPF");
+  } else if (state.page == 3) {
+    // Compressor.  The model tabs sit above the GR history.
+    for (int i = 0; i < 3; ++i) {
+      Widget b{};
+      b.kind = Kind::Button;
+      b.param = P_COMP_MODEL;
+      b.value = i;
+      b.x = 52.0 + i * 108.0;
+      b.y = 182.0;
+      b.w = 98.0;
+      b.h = 28.0;
+      b.label = kCompModelLabels[i];
+      widgets_.push_back(b);
+    }
+    pill(P_COMP_ON, 396, 182, 120, 28, "COMP ON");
+    const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
+    knob(P_COMP_THRESHOLD, 170, 445, 26, "THRESHOLD");
+    knob(P_COMP_RATIO, 310, 445, 26, model == 1 ? "LIMIT" : "RATIO", {},
+         false, 9);
+    if (model != 1) {
+      knob(P_COMP_ATTACK, 450, 445, 26, "ATTACK");
+      knob(P_COMP_RELEASE, 590, 445, 26, "RELEASE");
+    }
+    knob(P_COMP_MAKEUP, 310, 550, 24, "MAKEUP", {}, true);
+    knob(P_COMP_MIX, 450, 550, 24, "MIX", {}, true);
+    knob(P_COMP_SC_HPF, 590, 550, 24, "SC HPF", {}, true);
   }
 
   // Global.  Power is the bypass; the bottom corners are just trim.
@@ -574,6 +600,16 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   state.detectorDb = shared.detectorDb.load(std::memory_order_relaxed);
   state.gate = shared.gate.load(std::memory_order_relaxed);
   state.ghostActive = shared.ghostActive.load(std::memory_order_relaxed);
+  state.compGrDb = shared.compGrDb.load(std::memory_order_relaxed);
+  {
+    const int ch = shared.compHistoryHead.load(std::memory_order_relaxed) &
+                   (Shared::kScopeSize - 1);
+    for (int i = 0; i < Shared::kScopeSize; ++i) {
+      const int idx = (ch + i) & (Shared::kScopeSize - 1);
+      state.compHistory[i] =
+          shared.compHistory[idx].load(std::memory_order_relaxed);
+    }
+  }
   if (++state.sampleScanTicks >= 60) {
     state.sampleScanTicks = 0;
     state.sampleFiles = listSampleFiles(sampleDir());
@@ -605,6 +641,8 @@ void Panel::draw(cairo_t* cr, Shared& shared, const PanelState& state) {
     drawSamplePage(cr, shared, state);
   } else if (state.page == 2) {
     drawEqPage(cr, shared, state);
+  } else if (state.page == 3) {
+    drawCompPage(cr, shared, state);
   } else {
     drawPlaceholderPage(cr, state.page);
   }
@@ -733,7 +771,7 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
       "BLEED OUT  -  multiband de-bleed gate",
       "SAMPLE  -  loader, pitch and gate trigger",
       "EQ  -  4-band + HPF/LPF",
-      "COMP  -  76 / 2A / VCA (next milestone)",
+      "COMP  -  76 / 2A / VCA",
       "DRIVE  -  valve / console / tape (next milestone)",
       "CLIP  -  soft / hard / diode (next milestone)",
       "LIMIT  -  true-peak safety (next milestone)"};
@@ -1031,6 +1069,89 @@ void Panel::drawEqPage(cairo_t* cr, const Shared& shared,
        skin.legendDim.b);
   text(cr, lp, gx + gw, gy - 10, 9, 2, skin.legendDim.r, skin.legendDim.g,
        skin.legendDim.b);
+}
+
+void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
+                         const PanelState& state) const {
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+  const int model = std::clamp(static_cast<int>(shared.get(P_COMP_MODEL) + 0.5),
+                               0, 2);
+
+  // Gain-reduction history.
+  const double gx = 52, gy = 240, gw = 480, gh = 130;
+  roundRect(cr, gx, gy, gw, gh, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  for (int db = 0; db <= 24; db += 6) {
+    const double y = gy + gh * db / 24.0;
+    setRgb(cr, skin.legendDim, db == 0 ? 0.30 : 0.14);
+    cairo_move_to(cr, gx, y);
+    cairo_line_to(cr, gx + gw, y);
+    cairo_stroke(cr);
+    char label[8];
+    std::snprintf(label, sizeof(label), "-%d", db);
+    text(cr, label, gx - 8, y + 3, 8.5, 2, skin.legendDim.r, skin.legendDim.g,
+         skin.legendDim.b);
+  }
+  setRgb(cr, skin.legendDim, 0.35);
+  roundRect(cr, gx + 0.5, gy + 0.5, gw - 1.0, gh - 1.0, 4);
+  cairo_stroke(cr);
+
+  const int n = Shared::kScopeSize;
+  const double barW = gw / n;
+  setRgb(cr, skin.btnOn, 0.85);
+  for (int i = 0; i < n; ++i) {
+    const double gr = std::clamp(static_cast<double>(state.compHistory[i]),
+                                 0.0, 24.0);
+    if (gr < 0.15) continue;
+    const double h = gh * gr / 24.0;
+    cairo_rectangle(cr, gx + i * barW + 0.5, gy + gh - h,
+                    std::max(1.0, barW - 1.0), h);
+    cairo_fill(cr);
+  }
+
+  text(cr, "GAIN REDUCTION", gx + 24, gy - 8, 9, 0, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+  char current[32];
+  std::snprintf(current, sizeof(current), "%.1f dB",
+                std::clamp(state.compGrDb, 0.0f, 60.0f));
+  text(cr, current, gx + gw, gy - 8, 11, 2, skin.btnOn.r, skin.btnOn.g,
+       skin.btnOn.b);
+
+  // Model card.
+  const double cx = 560, cy = 240, cw = 410, ch = 130;
+  roundRect(cr, cx, cy, cw, ch, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.25);
+  roundRect(cr, cx + 0.5, cy + 0.5, cw - 1.0, ch - 1.0, 4);
+  cairo_stroke(cr);
+  static const char* const kNames[3] = {"76", "2A", "VCA"};
+  static const char* const kLines[3] = {
+      "FET PEAK LIMITER  -  fast, aggressive drum control",
+      "OPTICAL LEVELER  -  program-dependent release",
+      "BUS VCA  -  clean, stereo-linked glue"};
+  text(cr, kNames[model], cx + 20, cy + 42, 30, 0, skin.btnOn.r, skin.btnOn.g,
+       skin.btnOn.b);
+  text(cr, kLines[model], cx + 20, cy + 70, 9.5, 0, skin.legend.r,
+       skin.legend.g, skin.legend.b);
+  if (model == 1) {
+    text(cr, "ATTACK AND RELEASE FOLLOW THE PROGRAM", cx + 20, cy + 92, 8.5,
+         0, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+  } else {
+    char ratio[32];
+    const int step = std::clamp(
+        static_cast<int>(std::lround(shared.get(P_COMP_RATIO))), 0, 8);
+    static const float kRatios[9] = {1.5f, 2.0f, 3.0f, 4.0f, 6.0f,
+                                     8.0f, 12.0f, 20.0f, 20.0f};
+    if (step >= 8) std::snprintf(ratio, sizeof(ratio), "ALL BUTTONS");
+    else std::snprintf(ratio, sizeof(ratio), "%.1f:1", kRatios[step]);
+    text(cr, ratio, cx + 20, cy + 94, 9.5, 0, skin.legendDim.r,
+         skin.legendDim.g, skin.legendDim.b);
+  }
 }
 
 void Panel::drawScope(cairo_t* cr, const Shared& shared,
@@ -1560,6 +1681,7 @@ void Panel::drawTextEntry(cairo_t* cr, const Shared& shared) const {
 void Panel::applyPreset(Shared& shared, PanelState& state, int index) const {
   if (index < 0 || index >= kPresetCount) return;
   const Preset& p = kPresets[index];
+  applyDrumDefaults(shared, p.drum);
   for (int i = 0; i < p.count; ++i) {
     const PresetValue& v = p.values[i];
     if (v.param >= 0 && v.param < static_cast<int>(P_COUNT)) {

@@ -24,6 +24,7 @@ constexpr float kSr = 48000.0f;
 struct Render {
   std::vector<float> l, r;
   Meters meters;
+  float maxCompGrDb = 0.0f;
 };
 
 Render run(const Controls& c, const std::vector<float>& in) {
@@ -39,6 +40,7 @@ Render run(const Controls& c, const std::vector<float>& in) {
   for (int start = 0; start < n; start += 128) {
     const int len = std::min(128, n - start);
     engine.process(out.l.data() + start, out.r.data() + start, len, out.meters);
+    out.maxCompGrDb = std::max(out.maxCompGrDb, out.meters.compGrDb);
   }
   return out;
 }
@@ -53,6 +55,7 @@ Controls base() {
   c.ghost = 100.0f;
   c.power = true;
   c.bypass = false;
+  c.compOn = false;
   return c;
 }
 
@@ -102,6 +105,24 @@ int main() {
     for (size_t i = latency; i < in.size(); ++i)
       err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
     check(err < 1e-6f, "bypass is the delayed exact input");
+  }
+
+  {
+    // Global bypass also bypasses sample, EQ and compressor.
+    Controls c = base();
+    c.bypass = true;
+    c.compOn = true;
+    c.eqLow = 1.0f;
+    c.sampleOn = true;
+    std::vector<float> in(2048);
+    for (size_t i = 0; i < in.size(); ++i)
+      in[i] = 0.25f * std::sin(2.0f * 3.14159265f * 220.0f * i / kSr);
+    Render r = run(c, in);
+    const int latency = static_cast<int>(kSr * 0.002f);
+    float err = 0.0f;
+    for (size_t i = latency; i < in.size(); ++i)
+      err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
+    check(err < 1e-6f, "global bypass skips sample, EQ and compressor");
   }
 
   {
@@ -344,6 +365,58 @@ int main() {
           "EQ leaves the top band flat with a low boost");
     check(db(hpLow) < db(flatLow) - 3.0,
           "EQ high-pass cuts the low band when engaged");
+  }
+
+
+  {
+    // Compressor: all three models reduce a loud tone, and mix 0 is a true
+    // bypass.
+    const int n = static_cast<int>(kSr * 0.5f);
+    std::vector<float> tone(n);
+    for (int i = 0; i < n; ++i)
+      tone[i] = 0.35f * std::sin(2.0f * 3.14159265f * 200.0f * i / kSr);
+
+    Controls comp = base();
+    comp.gateOn = false;
+    comp.compOn = true;
+    comp.compThresholdDb = -30.0f;
+    comp.compRatio = 6.0f;
+    comp.compAttack = 0.1f;
+    comp.compRelease = 0.35f;
+    comp.compMakeup = 0.5f;
+    comp.compMix = 1.0f;
+    comp.compScHpf = 0.0f;
+
+    const double dry = rms(run(base(), tone).l, 2000, 12000);
+    for (int model = 0; model < 3; ++model) {
+      comp.compModel = model;
+      Render r = run(comp, tone);
+      const double wet = rms(r.l, 2000, 12000);
+      std::printf("  comp model %d: %.1f -> %.1f dB, gr %.1f dB\n", model,
+                  db(dry), db(wet), r.maxCompGrDb);
+      check(finite(r.l) && finite(r.r), "compressor output is finite");
+      check(r.maxCompGrDb > 0.5f, "compressor reports gain reduction");
+      check(wet < dry * 0.98, "compressor reduces a loud tone");
+    }
+
+    comp.compModel = 2;
+    comp.compMix = 0.0f;
+    Render bypass = run(comp, tone);
+    float err = 0.0f;
+    Controls flat = base();
+    flat.gateOn = false;
+    Render straight = run(flat, tone);
+    for (size_t i = 0; i < tone.size(); ++i)
+      err = std::max(err, std::fabs(bypass.l[i] - straight.l[i]));
+    check(err < 1e-6f, "compressor mix 0 is a true bypass");
+
+    comp.compMix = 1.0f;
+    comp.compMakeup = 0.5f;
+    Render unity = run(comp, tone);
+    comp.compMakeup = 1.0f;
+    Render lifted = run(comp, tone);
+    check(rms(lifted.l, 2000, 12000) > rms(unity.l, 2000, 12000) * 1.5,
+          "compressor makeup adds gain after compression");
   }
 
   std::printf("%d failure(s)\n", gFailures);

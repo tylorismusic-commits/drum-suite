@@ -9,6 +9,7 @@ Drum Suite is GPL-3.0-or-later.
 | **CLAP** headers (`third_party/clap`) | MIT | Plugin API |
 | **Jost** ExtraBold (`assets/fonts/Jost-ExtraBold.ttf`) | SIL Open Font License 1.1 | Panel typography |
 | **hearth-dsp** (`third_party/hearth-dsp`) | GPL-3.0-or-later | Crossover, ADAA, filters, smoothers |
+| **Comp Suite models** (`src/dsp/comp`) | GPL-3.0-or-later | 76 / 2A / VCA compressor DSP reused from Comp Suite |
 
 ## Reference-only (not vendored in 0.1.0)
 
