@@ -53,7 +53,7 @@ Skin skinFor(int drum) {
   // One chrome, with a per-drum accent.  The body stays in the Comp Suite
   // material; the accent changes the tabs, indicators and ghost.
   static const Rgb accents[8] = {
-      {0.95, 0.55, 0.18},  // Kick amber
+      {0.64, 0.36, 0.92},  // Kick purple
       {0.92, 0.22, 0.18},  // Snare red
       {0.95, 0.38, 0.12},  // Tom orange
       {0.95, 0.78, 0.15},  // Hat yellow
