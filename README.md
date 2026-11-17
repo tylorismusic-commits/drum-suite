@@ -1,6 +1,6 @@
 # Drum Suite
 
-**Version 0.6.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.7.0 — Linux x86_64** · GPL-3.0-or-later
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -55,11 +55,14 @@ open.
 
 - **Sample On** enables the layer; loading a file turns it on.
 - **Level** and **Direct** balance the sample against the gated direct signal.
-- **Pitch** ±24 semitones, **Start** moves the playback start point.
+- **Pitch** ±24 semitones, **Start** moves the playback start point (shown as
+  a marker on the waveform).
 - **Reverse**, **Choke** and **Fade** shape the one-shot.
-- **Trigger** chooses **Gate** (Bleed Out opens), **Transient** (input
-  transient) or **Always** (first transient regardless of the gate).
-- Four voices; choke is on by default.
+- **Trigger** chooses **Gate** (Bleed Out opens), **Transient** (independent
+  input onset detector) or **Always** (either source).
+- **Sensitivity** sets the transient threshold.
+- Four voices; choke is on by default. The waveform badge shows the live voice
+  count and trigger LED.
 
 The waveform shows the loaded file. The sample is loaded from disk at runtime;
 0.2.0 does not embed the audio in the plugin state yet, so a recalled session
@@ -89,8 +92,10 @@ Three drum-relevant models from Comp Suite, reusing the same DSP:
 - **VCA** — clean, stereo-linked bus compressor for room, overheads and the
   drum bus.
 
-Controls: Threshold, Ratio, Attack, Release (hidden on 2A), Makeup, Mix and
-Sidechain HPF. A gain-reduction history runs above the controls, and the output
+Controls: Input / Peak Reduction / Threshold (model-dependent), Ratio,
+Attack, Release (hidden on 2A), Makeup, Mix and Sidechain HPF. The models use
+Comp Suite's output trim, so the default profiles sit within about 2 dB of the
+input level. A gain-reduction history runs above the controls, and the output
 meters show the post-compressor level.
 
 Each drum profile carries its own compressor model and defaults; selecting a
@@ -145,6 +150,21 @@ The final safety stage is a lookahead limiter:
 
 ![Drum Suite — Limit](docs/limit.png)
 
+## Suggested ranges
+
+Continuous knobs draw a translucent second arc outside the value marker: the
+same recommended-range language used by Vocal Suite. The ranges are deliberately
+broad drum-channel starting points (for example −32…−12 dB on the compressor
+primary control and 40…90 % on DeBleed), not hard limits.
+
+## Known limitations
+
+- The loaded sample is not embedded in the plugin state yet. The session keeps
+  the parameter state; reload the WAV after recall.
+- MIDI sample triggering and trigger offset are planned but not in 0.7.0.
+- The LV2 UI estimate for the limiter latency assumes 48 kHz; CLAP reports the
+  host rate.
+
 ## Build
 
 Requires CMake 3.16+, a C++20 compiler, Cairo, FreeType, X11 and LV2.
@@ -167,7 +187,7 @@ cmake --install build
 
 ## Status
 
-0.6.0 completes the chain with the limiter:
+0.7.0 is a play-test and audit pass over the full chain:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
@@ -184,11 +204,18 @@ cmake --install build
 - LIMIT page: true-peak lookahead limiter, ceiling, release, lookahead, mix,
   GR history and a fixed 141-sample stage latency.
 - Every page is inset inside the input/output meter rails.
-- Tests: DSP, sample player, EQ response, compressor models, drive models,
-  clipper shapes/ceiling/latency, limiter ceiling/GR/true-peak, panel loading,
-  layout, geometry and TTL.
+- Suggested-range arcs on continuous knobs, matching Vocal Suite.
+- Sample trigger modes now behave differently: Gate, Transient and Always.
+- Sample trigger sensitivity, voice-count badge and start marker.
+- Compressor gain staging corrected with the model output trims; default
+  profiles now land within about 2 dB of the input level.
+- Power now bypasses the whole chain; True Peak actually switches between
+  4× detection and sample peaks.
+- Tests: DSP, sample player/trigger modes, EQ response, compressor models,
+  drive, clipper, limiter, suggested ranges, full-chain rates, power bypass,
+  panel loading, layout, geometry and TTL.
 
-Next: factory presets and release QA.
+Next: factory presets, sample-state persistence and release QA.
 
 ## Licence
 

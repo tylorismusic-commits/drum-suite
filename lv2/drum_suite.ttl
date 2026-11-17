@@ -24,7 +24,7 @@
     ] ;
     doap:homepage <https://github.com/tylorismusic-commits/drum-suite> ;
     lv2:majorVersion 0 ;
-    lv2:minorVersion 6 ;
+    lv2:minorVersion 7 ;
     lv2:microVersion 0 ;
     lv2:binary <drum_suite.so> ;
     rdfs:seeAlso <manifest.ttl> ;
@@ -402,7 +402,7 @@
         lv2:index 33 ;
         lv2:symbol "comp_threshold" ;
         lv2:name "Threshold" ;
-        lv2:default -22 ;
+        lv2:default -20 ;
         lv2:minimum -40 ;
         lv2:maximum 0 ;
         units:unit units:db ;
@@ -563,7 +563,7 @@
         lv2:index 47 ;
         lv2:symbol "clip_on" ;
         lv2:name "Clip On" ;
-        lv2:default 0 ;
+        lv2:default 1 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
         lv2:integer true ;
@@ -712,8 +712,19 @@
         pg:group <https://github.com/tylorismusic-commits/drum-suite#limit> ;
     ] ,
     [
-        a lv2:OutputPort , lv2:ControlPort ;
+        a lv2:InputPort , lv2:ControlPort ;
         lv2:index 60 ;
+        lv2:symbol "sample_sensitivity" ;
+        lv2:name "Sensitivity" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:pc ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 61 ;
         lv2:symbol "in_peak_l" ;
         lv2:name "Input Peak Left" ;
         lv2:default 0 ;
@@ -724,7 +735,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 61 ;
+        lv2:index 62 ;
         lv2:symbol "in_peak_r" ;
         lv2:name "Input Peak Right" ;
         lv2:default 0 ;
@@ -735,7 +746,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 62 ;
+        lv2:index 63 ;
         lv2:symbol "out_peak_l" ;
         lv2:name "Output Peak Left" ;
         lv2:default 0 ;
@@ -746,7 +757,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 63 ;
+        lv2:index 64 ;
         lv2:symbol "out_peak_r" ;
         lv2:name "Output Peak Right" ;
         lv2:default 0 ;
@@ -757,7 +768,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 64 ;
+        lv2:index 65 ;
         lv2:symbol "in_peak" ;
         lv2:name "Input Peak" ;
         lv2:default 0 ;
@@ -768,7 +779,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 65 ;
+        lv2:index 66 ;
         lv2:symbol "out_peak" ;
         lv2:name "Output Peak" ;
         lv2:default 0 ;
@@ -779,7 +790,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 66 ;
+        lv2:index 67 ;
         lv2:symbol "gr" ;
         lv2:name "Gain Reduction" ;
         lv2:default 0 ;
@@ -790,7 +801,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 67 ;
+        lv2:index 68 ;
         lv2:symbol "detector" ;
         lv2:name "Detector" ;
         lv2:default 0 ;
@@ -801,7 +812,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 68 ;
+        lv2:index 69 ;
         lv2:symbol "comp_gr" ;
         lv2:name "Compressor Gain Reduction" ;
         lv2:default 0 ;
@@ -812,7 +823,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 69 ;
+        lv2:index 70 ;
         lv2:symbol "limit_gr" ;
         lv2:name "Limiter Gain Reduction" ;
         lv2:default 0 ;
@@ -823,7 +834,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 70 ;
+        lv2:index 71 ;
         lv2:symbol "gate" ;
         lv2:name "Gate" ;
         lv2:default 1 ;
@@ -834,7 +845,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 71 ;
+        lv2:index 72 ;
         lv2:symbol "ghost_active" ;
         lv2:name "Ghost Active" ;
         lv2:default 0 ;
@@ -846,7 +857,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 72 ;
+        lv2:index 73 ;
         lv2:symbol "clip_active" ;
         lv2:name "Clip Active" ;
         lv2:default 0 ;
@@ -858,7 +869,31 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 73 ;
+        lv2:index 74 ;
+        lv2:symbol "sample_voices" ;
+        lv2:name "Sample Voices" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 4 ;
+        lv2:integer true ;
+        lv2:portProperty pprops:notOnGUI ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 75 ;
+        lv2:symbol "sample_active" ;
+        lv2:name "Sample Active" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:portProperty pprops:notOnGUI ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 76 ;
         lv2:symbol "latency" ;
         lv2:name "Latency" ;
         lv2:default 0 ;
@@ -870,7 +905,7 @@
     ] ,
     [
         a atom:AtomPort , lv2:InputPort ;
-        lv2:index 74 ;
+        lv2:index 77 ;
         lv2:symbol "midi_in" ;
         lv2:name "MIDI In" ;
         atom:bufferType atom:Sequence ;

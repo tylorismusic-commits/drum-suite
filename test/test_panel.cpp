@@ -201,7 +201,7 @@ int main() {
           "sample folder scan finds WAV files");
     state.page = 1;
     panel.draw(cr, shared, state);
-    panel.pointerDown(shared, state, 100, 240, false);
+    panel.pointerDown(shared, state, 140, 270, false);
     panel.pointerUp();
     check(shared.sample() != nullptr, "clicking a sample row loads it");
     check(shared.sample() && shared.sample()->data.size() == 4800,

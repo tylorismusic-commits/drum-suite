@@ -39,6 +39,8 @@ enum Port : uint32_t {
   PORT_GATE,
   PORT_GHOST_ACTIVE,
   PORT_CLIP_ACTIVE,
+  PORT_SAMPLE_VOICES,
+  PORT_SAMPLE_ACTIVE,
   PORT_LATENCY,
   PORT_MIDI_IN,
   PORT_COUNT
@@ -70,6 +72,8 @@ struct Plugin {
   float* gate = nullptr;
   float* ghostActive = nullptr;
   float* clipActive = nullptr;
+  float* sampleVoices = nullptr;
+  float* sampleActive = nullptr;
   float* latency = nullptr;
   LV2_Atom_Sequence* midiIn = nullptr;
   const LV2_URID_Map* map = nullptr;
@@ -80,6 +84,7 @@ LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
                        const LV2_Feature* const* features) {
   auto* p = new Plugin();
   p->sampleRate = static_cast<float>(rate);
+  p->shared.sampleRate.store(p->sampleRate);
   for (const LV2_Feature* const* f = features; f && *f; ++f) {
     if (!std::strcmp((*f)->URI, LV2_URID__map) && (*f)->data) {
       p->map = static_cast<const LV2_URID_Map*>(static_cast<const void*>((*f)->data));
@@ -114,6 +119,8 @@ void connectPort(LV2_Handle handle, uint32_t port, void* data) {
     case PORT_GATE: p->gate = static_cast<float*>(data); break;
     case PORT_GHOST_ACTIVE: p->ghostActive = static_cast<float*>(data); break;
     case PORT_CLIP_ACTIVE: p->clipActive = static_cast<float*>(data); break;
+    case PORT_SAMPLE_VOICES: p->sampleVoices = static_cast<float*>(data); break;
+    case PORT_SAMPLE_ACTIVE: p->sampleActive = static_cast<float*>(data); break;
     case PORT_LATENCY: p->latency = static_cast<float*>(data); break;
     case PORT_MIDI_IN: p->midiIn = static_cast<LV2_Atom_Sequence*>(data); break;
     default:
@@ -209,6 +216,15 @@ void run(LV2_Handle handle, uint32_t frames) {
   if (p->ghostActive) *p->ghostActive = p->meters.ghostActive ? 1.0f : 0.0f;
   if (p->clipActive) *p->clipActive = p->meters.clipActive ? 1.0f : 0.0f;
   p->shared.clipActive.store(p->meters.clipActive, std::memory_order_relaxed);
+  p->shared.sampleVoices.store(p->meters.sampleVoices,
+                               std::memory_order_relaxed);
+  p->shared.sampleActive.store(
+      p->meters.sampleVoices > 0 || p->meters.sampleTriggered,
+      std::memory_order_relaxed);
+  if (p->sampleVoices) *p->sampleVoices = static_cast<float>(p->meters.sampleVoices);
+  if (p->sampleActive)
+    *p->sampleActive =
+        (p->meters.sampleVoices > 0 || p->meters.sampleTriggered) ? 1.0f : 0.0f;
   if (p->latency) *p->latency = static_cast<float>(p->engine.latencySamples());
 
   const int head = p->shared.scopeHead.load(std::memory_order_relaxed) &

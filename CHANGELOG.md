@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 — 2026-11-17
+
+- Audit pass over every module with a real snare loop.
+- Fixed compressor gain staging: Comp Suite model output trims are now applied;
+  factory profiles sit within about 2 dB of the input level.
+- Compressor primary control is labelled Input / Peak Red / Threshold per model.
+- Power now bypasses the whole chain, not only the gate.
+- True Peak actually switches 4x detection off; sample-peak mode is distinct.
+- Sample trigger modes fixed: Gate, Transient (independent onset detector) and
+  Always (either source).
+- Added Sample Sensitivity, voice-count badge, trigger LED and start marker.
+- Reflowed the Sample page: Sample On moved to the top, four voice controls in
+  one row, sensitivity/fade/trigger below, reverse/choke as switches, and a
+  taller file browser. The waveform info line is no longer covered by a button.
+- Added suggested-range arcs on continuous knobs, matching Vocal Suite.
+- Drive bypass no longer leaves a residual auto-gain ramp.
+- Added full-chain 44.1/96 kHz and power-bypass tests.
+
 ## 0.6.0 — 2026-11-17
 
 - LIMIT page: true-peak lookahead limiter with ceiling, release, lookahead and

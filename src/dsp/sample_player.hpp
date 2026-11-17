@@ -43,6 +43,7 @@ public:
     choke_ = c.sampleChoke;
     fadeSamples_ = std::max(1, static_cast<int>(c.sampleFadeMs * 0.001f * sr_));
     triggerMode_ = c.sampleTrigger;
+    triggerThreshold_ = 0.004f + 0.12f * (1.0f - std::clamp(c.sampleSensitivity, 0.0f, 1.0f));
   }
 
   void process(float* left, float* right, const uint8_t* trigger, int frames,
@@ -58,10 +59,21 @@ public:
     const float stepBase = std::pow(2.0f, pitch_ / 12.0f) * rate;
 
     for (int i = 0; i < frames; ++i) {
-      float peak = std::max(std::fabs(left[i]), std::fabs(right[i]));
-      bool fire = trigger && trigger[i];
-      if (triggerMode_ == 2) {
-        fire = peak > 0.012f && prevPeak_ <= 0.012f;
+      const float peak = std::max(std::fabs(left[i]), std::fabs(right[i]));
+      const bool gateFire = trigger && trigger[i];
+      const bool transientFire =
+          peak > triggerThreshold_ && prevPeak_ <= triggerThreshold_;
+      bool fire = false;
+      switch (triggerMode_) {
+        case 0:  // Gate
+          fire = gateFire;
+          break;
+        case 1:  // Independent transient detector
+          fire = transientFire;
+          break;
+        default:  // Always: either source
+          fire = gateFire || transientFire;
+          break;
       }
       prevPeak_ = peak;
       if (fire) {
@@ -143,6 +155,7 @@ private:
   bool choke_ = true;
   int fadeSamples_ = 144;
   int triggerMode_ = 0;
+  float triggerThreshold_ = 0.02f;
   float prevPeak_ = 0.0f;
   int nextVoice_ = 0;
   std::shared_ptr<const SampleBuffer> sample_;

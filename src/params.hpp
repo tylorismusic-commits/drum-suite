@@ -68,6 +68,7 @@ enum ParamId : uint32_t {
   P_LIMIT_LOOKAHEAD,
   P_LIMIT_TRUEPEAK,
   P_LIMIT_MIX,
+  P_SAMPLE_SENSITIVITY,
   P_COUNT
 };
 
@@ -79,6 +80,82 @@ struct Labels {
 template <size_t N>
 constexpr Labels labels(const char* const (&arr)[N]) noexcept {
   return Labels{arr, static_cast<int>(N)};
+}
+
+struct SuggestedRange {
+  double lo = 0.0;
+  double hi = -1.0;  // hi <= lo means no suggested range
+};
+
+inline SuggestedRange recommendedRange(uint32_t id) noexcept {
+  switch (id) {
+    case P_INPUT:
+    case P_OUTPUT:
+      return {-6.0, 6.0};
+    case P_THRESHOLD:
+      return {-45.0, -18.0};
+    case P_DEBLEED:
+      return {40.0, 90.0};
+    case P_GHOST:
+      return {30.0, 85.0};
+    case P_SAMPLE_LEVEL:
+      return {50.0, 100.0};
+    case P_SAMPLE_DIRECT:
+      return {40.0, 100.0};
+    case P_SAMPLE_PITCH:
+      return {-7.0, 7.0};
+    case P_SAMPLE_START:
+      return {0.0, 30.0};
+    case P_SAMPLE_FADE:
+      return {1.0, 50.0};
+    case P_SAMPLE_SENSITIVITY:
+      return {0.30, 0.80};
+    case P_EQ_LOW:
+    case P_EQ_LOW_MID:
+    case P_EQ_HIGH_MID:
+    case P_EQ_HIGH:
+      return {0.42, 0.62};
+    case P_EQ_HPF:
+      return {0.0, 0.35};
+    case P_EQ_LPF:
+      return {0.55, 1.0};
+    case P_COMP_THRESHOLD:
+      return {-32.0, -12.0};
+    case P_COMP_ATTACK:
+      return {0.1, 0.6};
+    case P_COMP_RELEASE:
+      return {0.2, 0.7};
+    case P_COMP_MAKEUP:
+      return {0.45, 0.85};
+    case P_COMP_MIX:
+      return {0.50, 1.0};
+    case P_COMP_SC_HPF:
+      return {0.0, 0.50};
+    case P_DRIVE_DRIVE:
+      return {0.20, 0.65};
+    case P_DRIVE_CHARACTER:
+      return {0.30, 0.70};
+    case P_DRIVE_TONE:
+      return {0.35, 0.70};
+    case P_DRIVE_MIX:
+      return {0.10, 0.50};
+    case P_CLIP_DRIVE:
+      return {0.20, 0.60};
+    case P_CLIP_CEILING:
+      return {0.80, 0.95};
+    case P_CLIP_MIX:
+      return {0.10, 0.40};
+    case P_LIMIT_CEILING:
+      return {0.90, 1.0};
+    case P_LIMIT_RELEASE:
+      return {0.20, 0.70};
+    case P_LIMIT_LOOKAHEAD:
+      return {0.20, 0.80};
+    case P_LIMIT_MIX:
+      return {0.70, 1.0};
+    default:
+      return {};
+  }
 }
 
 struct ParamSpec {
@@ -149,7 +226,7 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"comp_on", "Comp On", "Comp", 0.0, 1.0, 1.0, true, false, true, nullptr, {}},
     {"comp_model", "Model", "Comp", 0.0, 2.0, 0.0, true, false, false, nullptr,
      labels(kCompModelLabels)},
-    {"comp_threshold", "Threshold", "Comp", -40.0, 0.0, -22.0, false, false,
+    {"comp_threshold", "Threshold", "Comp", -40.0, 0.0, -20.0, false, false,
      false, "dB", {}},
     {"comp_ratio", "Ratio", "Comp", 0.0, 8.0, 4.0, true, false, false, nullptr, {}},
     {"comp_attack", "Attack", "Comp", 0.0, 1.0, 0.25, false, false, false, "%", {}},
@@ -170,7 +247,7 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"drive_mix", "Mix", "Drive", 0.0, 1.0, 0.35, false, false, false, "%", {}},
     {"drive_auto_gain", "Auto Gain", "Drive", 0.0, 1.0, 1.0, true, false, true,
      nullptr, {}},
-    {"clip_on", "Clip On", "Clip", 0.0, 1.0, 0.0, true, false, true, nullptr, {}},
+    {"clip_on", "Clip On", "Clip", 0.0, 1.0, 1.0, true, false, true, nullptr, {}},
     {"clip_drive", "Drive", "Clip", 0.0, 1.0, 0.35, false, false, false, "%", {}},
     {"clip_ceiling", "Ceiling", "Clip", 0.0, 1.0, 0.85, false, false, false, "dB",
      {}},
@@ -192,6 +269,8 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"limit_true_peak", "True Peak", "Limit", 0.0, 1.0, 1.0, true, false, true,
      nullptr, {}},
     {"limit_mix", "Mix", "Limit", 0.0, 1.0, 1.0, false, false, false, "%", {}},
+    {"sample_sensitivity", "Sensitivity", "Sample", 0.0, 1.0, 0.5, false, false,
+     false, "%", {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -218,6 +297,9 @@ public:
     ghostActive.store(false);
     compGrDb.store(0.0f);
     clipActive.store(false);
+    sampleVoices.store(0);
+    sampleActive.store(false);
+    sampleRate.store(48000.0f);
     limitGrDb.store(0.0f);
     limitHistoryHead.store(0);
     for (int i = 0; i < kScopeSize; ++i) limitHistory[i].store(0.0f);
@@ -285,6 +367,9 @@ public:
   std::atomic<bool> ghostActive;
   std::atomic<float> compGrDb;
   std::atomic<bool> clipActive;
+  std::atomic<int> sampleVoices;
+  std::atomic<bool> sampleActive;
+  std::atomic<float> sampleRate;
   std::atomic<float> limitGrDb;
   std::atomic<float> limitHistory[kScopeSize];
   std::atomic<int> limitHistoryHead;
@@ -363,6 +448,7 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.sampleChoke = s.get(P_SAMPLE_CHOKE) > 0.5;
   c.sampleFadeMs = static_cast<float>(s.get(P_SAMPLE_FADE));
   c.sampleTrigger = static_cast<int>(s.get(P_SAMPLE_TRIGGER) + 0.5);
+  c.sampleSensitivity = static_cast<float>(s.get(P_SAMPLE_SENSITIVITY));
   c.eqLow = static_cast<float>(s.get(P_EQ_LOW));
   c.eqLowMid = static_cast<float>(s.get(P_EQ_LOW_MID));
   c.eqHighMid = static_cast<float>(s.get(P_EQ_HIGH_MID));

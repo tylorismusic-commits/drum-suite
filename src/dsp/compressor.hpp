@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <hdsp/db.hpp>
+
 #include "comp/controls.hpp"
 #include "comp/fet.hpp"
 #include "comp/optical.hpp"
@@ -31,9 +33,15 @@ public:
 
   void setControls(const Controls& c) noexcept {
     comp::Controls cc{};
-    cc.input = std::clamp(0.25f + 0.45f * (0.0f - c.compThresholdDb) / 40.0f,
-                          0.0f, 1.0f);
-    cc.threshold = std::clamp((0.0f - c.compThresholdDb) / 40.0f, 0.0f, 1.0f);
+    const float t = std::clamp(c.compThresholdDb, -40.0f, 0.0f);
+    // The 76 has no threshold: its input knob is the drive.  Calibrate the
+    // shared Threshold control so the default positions give a few dB of GR
+    // instead of pinning the FET.
+    const float fetInputDb = -18.0f + 0.45f * (t + 20.0f);
+    cc.input = std::pow(std::clamp((fetInputDb + 80.0f) / 103.0f, 0.0f, 1.0f),
+                        2.0f);
+    // 2A: Peak Reduction.  VCA: a real threshold in dB.
+    cc.threshold = std::clamp((-t - 8.0f) / 32.0f, 0.0f, 1.0f);
     cc.ratio = std::clamp(c.compRatio, 0.0f, 8.0f);
     cc.attack = std::clamp(c.compAttack, 0.0f, 1.0f);
     cc.release = std::clamp(c.compRelease, 0.0f, 1.0f);
@@ -44,6 +52,7 @@ public:
     cc.vcaAutoRelease = false;
 
     const int model = std::clamp(c.compModel, 0, 2);
+    trim_ = model == 1 ? 1.0f : hdsp::dbToGain(comp::kModelTrimDb[model]);
     if (model != model_) {
       model_ = model;
       resetActive();
@@ -57,9 +66,12 @@ public:
         // part of the model.  Ratio above the halfway point selects Limit.
         opto_.setControls(cc);
         break;
-      default:
-        vca_.setControls(cc);
+      default: {
+        comp::Controls vc = cc;
+        vc.threshold = std::clamp((t + 40.0f) / 40.0f, 0.0f, 1.0f);
+        vca_.setControls(vc);
         break;
+      }
     }
     mix_ = std::clamp(c.compMix, 0.0f, 1.0f);
     on_ = c.compOn;
@@ -86,8 +98,8 @@ public:
             break;
         }
         grMax = std::max(grMax, gr);
-        left[i] = dryL + (wetL - dryL) * mix_;
-        right[i] = dryR + (wetR - dryR) * mix_;
+        left[i] = dryL + (wetL * trim_ - dryL) * mix_;
+        right[i] = dryR + (wetR * trim_ - dryR) * mix_;
       }
     }
     meters.compGrDb = grMax;
@@ -114,6 +126,7 @@ private:
   int model_ = 0;
   bool on_ = false;
   float mix_ = 1.0f;
+  float trim_ = 1.0f;
   comp::FetLimiter fet_;
   comp::OptoLeveler opto_;
   comp::BusVca vca_;

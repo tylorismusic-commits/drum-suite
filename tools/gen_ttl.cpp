@@ -289,6 +289,40 @@ std::string buildPluginTtl() {
   }
 
   {
+    std::ostringstream p;
+    p << "    [\n";
+    p << "        a lv2:OutputPort , lv2:ControlPort ;\n";
+    p << "        lv2:index " << index++ << " ;\n";
+    p << "        lv2:symbol \"sample_voices\" ;\n";
+    p << "        lv2:name \"Sample Voices\" ;\n";
+    p << "        lv2:default 0 ;\n";
+    p << "        lv2:minimum 0 ;\n";
+    p << "        lv2:maximum 4 ;\n";
+    p << "        lv2:integer true ;\n";
+    p << "        lv2:portProperty pprops:notOnGUI ;\n";
+    p << "        pg:group <" << groupUri("Meter") << "> ;\n";
+    p << "    ]";
+    ports.push_back(p.str());
+  }
+
+  {
+    std::ostringstream p;
+    p << "    [\n";
+    p << "        a lv2:OutputPort , lv2:ControlPort ;\n";
+    p << "        lv2:index " << index++ << " ;\n";
+    p << "        lv2:symbol \"sample_active\" ;\n";
+    p << "        lv2:name \"Sample Active\" ;\n";
+    p << "        lv2:default 0 ;\n";
+    p << "        lv2:minimum 0 ;\n";
+    p << "        lv2:maximum 1 ;\n";
+    p << "        lv2:integer true ;\n";
+    p << "        lv2:portProperty pprops:notOnGUI ;\n";
+    p << "        pg:group <" << groupUri("Meter") << "> ;\n";
+    p << "    ]";
+    ports.push_back(p.str());
+  }
+
+  {
     // Latency in samples, for host delay compensation.  It changes with the
     // oversampling mode, so hosts must read it every cycle.
     std::ostringstream p;

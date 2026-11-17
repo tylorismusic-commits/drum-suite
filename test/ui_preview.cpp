@@ -84,6 +84,8 @@ int main(int argc, char** argv) {
     fakeScope(shared, 1.0f);
     if (page == 1) {
       loadPreviewSample(shared);
+      shared.sampleVoices.store(1, std::memory_order_relaxed);
+      shared.sampleActive.store(true, std::memory_order_relaxed);
     } else if (page == 3) {
       if (std::getenv("DRUM_PREVIEW_2A")) shared.set(P_COMP_MODEL, 1);
       shared.compGrDb.store(6.4f);

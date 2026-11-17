@@ -34,22 +34,17 @@ public:
     bc.character = std::clamp(c.driveCharacter, 0.0f, 1.0f);
     bc.tone = std::clamp(c.driveTone, 0.0f, 1.0f);
     bc.mix = std::clamp(c.driveMix, 0.0f, 1.0f);
+    mix_ = bc.mix;
     bc.level = 0.5f;
     sat_.setControls(bc, -1, 0);
     on_ = c.driveOn;
     autoGain_ = c.driveAutoGain;
+    if (!on_) gain_ = 1.0f;
   }
 
   void process(float* left, float* right, int frames) noexcept {
-    if (!on_) {
-      // Still advance the auto-gain ramp toward unity so bypass is click-free.
-      if (gain_ != 1.0f) {
-        for (int i = 0; i < frames; ++i) {
-          gain_ += (1.0f - gain_) * gainK_;
-          left[i] *= gain_;
-          right[i] *= gain_;
-        }
-      }
+    if (!on_ || mix_ <= 0.0001f) {
+      gain_ = 1.0f;
       return;
     }
     for (int i = 0; i < frames; ++i) {
@@ -90,6 +85,7 @@ private:
   float sr_ = 48000.0f;
   bool on_ = false;
   bool autoGain_ = true;
+  float mix_ = 1.0f;
   float gain_ = 1.0f;
   float target_ = 1.0f;
   float inPow_ = 0.0f;

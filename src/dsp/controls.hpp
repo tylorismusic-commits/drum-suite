@@ -131,14 +131,14 @@ inline constexpr ClipDefaults kClipDefaults[8] = {
 };
 
 inline constexpr CompDefaults kCompDefaults[8] = {
-    {0, -22.0f, 4.0f, 0.25f, 0.35f, 0.50f, 1.00f, 0.05f},  // Kick
-    {0, -20.0f, 5.0f, 0.15f, 0.40f, 0.55f, 0.85f, 0.25f},  // Snare
-    {0, -24.0f, 3.0f, 0.30f, 0.45f, 0.50f, 0.90f, 0.20f},  // Tom
-    {1, -26.0f, 2.0f, 0.50f, 0.50f, 0.55f, 0.70f, 0.60f},  // Hat
-    {1, -24.0f, 2.0f, 0.50f, 0.50f, 0.50f, 0.70f, 0.60f},  // Ride
-    {2, -22.0f, 3.0f, 0.35f, 0.55f, 0.50f, 1.00f, 0.65f},  // Room
-    {2, -20.0f, 3.0f, 0.30f, 0.50f, 0.50f, 0.90f, 0.55f},  // OH
-    {2, -18.0f, 4.0f, 0.40f, 0.60f, 0.50f, 1.00f, 0.70f},  // Bus
+    {0, -20.0f, 4.0f, 0.25f, 0.35f, 0.80f, 1.00f, 0.05f},  // Kick
+    {0, -22.0f, 5.0f, 0.15f, 0.40f, 0.80f, 0.90f, 0.25f},  // Snare
+    {0, -20.0f, 4.0f, 0.30f, 0.45f, 0.80f, 0.90f, 0.20f},  // Tom
+    {1, -18.0f, 2.0f, 0.50f, 0.50f, 0.40f, 0.70f, 0.60f},  // Hat
+    {1, -18.0f, 2.0f, 0.50f, 0.50f, 0.40f, 0.70f, 0.60f},  // Ride
+    {2, -14.0f, 3.0f, 0.35f, 0.55f, 0.42f, 1.00f, 0.65f},  // Room
+    {2, -16.0f, 3.0f, 0.30f, 0.50f, 0.45f, 0.90f, 0.55f},  // OH
+    {2, -12.0f, 4.0f, 0.40f, 0.60f, 0.38f, 1.00f, 0.70f},  // Bus
 };
 
 inline float eqHpfHz(float v) noexcept {
@@ -194,7 +194,7 @@ struct Controls {
   float compRatio = 4.0f;   // 0..8 ladder
   float compAttack = 0.3f;  // 0..1
   float compRelease = 0.5f; // 0..1
-  float compMakeup = 0.5f;  // 0.5 = unity
+  float compMakeup = 0.8f;  // 0.5 = unity
   float compMix = 1.0f;
   float compScHpf = 0.3f;
 
@@ -208,7 +208,7 @@ struct Controls {
   bool driveAutoGain = true;
 
   // Clipper.
-  bool clipOn = false;
+  bool clipOn = true;
   int clipShape = 0;        // 0 Soft, 1 Hard, 2 Diode
   float clipDrive = 0.35f;
   float clipCeiling = 0.85f;
@@ -234,6 +234,7 @@ struct Controls {
   bool sampleChoke = true;
   float sampleFadeMs = 3.0f;    // 0..500
   int sampleTrigger = 0;        // 0 Gate, 1 Transient, 2 Always
+  float sampleSensitivity = 0.5f;
 };
 
 struct Meters {

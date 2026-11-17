@@ -383,16 +383,17 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
 
   if (state.page == 1) {
     // Sample page.
-    pill(P_SAMPLE_ON, 754, 318, 150, 24, "SAMPLE ON");
-    knob(P_SAMPLE_LEVEL, 500, 410, 24, "LEVEL");
-    knob(P_SAMPLE_DIRECT, 610, 410, 24, "DIRECT");
-    knob(P_SAMPLE_PITCH, 720, 410, 24, "PITCH");
-    knob(P_SAMPLE_START, 830, 410, 24, "START");
-    toggle(P_SAMPLE_REVERSE, 500, 520, "REVERSE");
-    toggle(P_SAMPLE_CHOKE, 610, 520, "CHOKE");
-    knob(P_SAMPLE_FADE, 720, 520, 22, "FADE");
-    knob(P_SAMPLE_TRIGGER, 830, 520, 22, "TRIGGER",
+    pill(P_SAMPLE_ON, 100, 182, 150, 26, "SAMPLE ON");
+    knob(P_SAMPLE_LEVEL, 540, 440, 26, "LEVEL");
+    knob(P_SAMPLE_DIRECT, 650, 440, 26, "DIRECT");
+    knob(P_SAMPLE_PITCH, 760, 440, 26, "PITCH");
+    knob(P_SAMPLE_START, 870, 440, 26, "START");
+    knob(P_SAMPLE_SENSITIVITY, 540, 555, 26, "SENSITIVITY");
+    knob(P_SAMPLE_FADE, 650, 555, 26, "FADE");
+    knob(P_SAMPLE_TRIGGER, 760, 555, 26, "TRIGGER",
          sc(kSampleTriggerLabels), false, 3);
+    pill(P_SAMPLE_REVERSE, 540, 620, 100, 24, "REVERSE");
+    pill(P_SAMPLE_CHOKE, 660, 620, 100, 24, "CHOKE");
   } else if (state.page == 2) {
     // EQ page.
     knob(P_EQ_LOW, 190, 535, 26, "LOW");
@@ -417,7 +418,9 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     }
     pill(P_COMP_ON, 444, 182, 120, 28, "COMP ON");
     const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
-    knob(P_COMP_THRESHOLD, 170, 445, 26, "THRESHOLD");
+    const char* thresholdLabel =
+        model == 0 ? "INPUT" : (model == 1 ? "PEAK RED" : "THRESHOLD");
+    knob(P_COMP_THRESHOLD, 170, 445, 26, thresholdLabel);
     knob(P_COMP_RATIO, 310, 445, 26, model == 1 ? "LIMIT" : "RATIO", {},
          false, 9);
     if (model != 1) {
@@ -530,8 +533,8 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
   (void)fine;
   if (handlePresetClick(shared, state, x, y)) return true;
   // Sample file list.
-  if (state.page == 1 && x >= 100 && x <= 480 && y >= 230 && y <= 420) {
-    const int row = static_cast<int>((y - 232) / 23) + state.sampleScroll;
+  if (state.page == 1 && x >= 100 && x <= 480 && y >= 262 && y <= 650) {
+    const int row = static_cast<int>((y - 262) / 23) + state.sampleScroll;
     if (row >= 0 && row < static_cast<int>(state.sampleFiles.size())) {
       loadSample(shared, state, sampleDir() + "/" + state.sampleFiles[row]);
       return true;
@@ -630,9 +633,9 @@ bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
     state.presetScroll = std::min(maxScroll, std::max(0, state.presetScroll - (int)dy));
     return true;
   }
-  if (state.page == 1 && x >= 100 && x <= 480 && y >= 190 && y <= 430) {
+  if (state.page == 1 && x >= 100 && x <= 480 && y >= 220 && y <= 650) {
     const int maxScroll =
-        std::max(0, static_cast<int>(state.sampleFiles.size()) - 8);
+        std::max(0, static_cast<int>(state.sampleFiles.size()) - 16);
     state.sampleScroll =
         std::min(maxScroll, std::max(0, state.sampleScroll - (dy > 0 ? 1 : -1)));
     return true;
@@ -663,6 +666,10 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   state.ghostActive = shared.ghostActive.load(std::memory_order_relaxed);
   state.compGrDb = shared.compGrDb.load(std::memory_order_relaxed);
   state.clipActive = shared.clipActive.load(std::memory_order_relaxed);
+  state.sampleVoices = shared.sampleVoices.load(std::memory_order_relaxed);
+  state.sampleActive = shared.sampleActive.load(std::memory_order_relaxed);
+  state.sampleRate = shared.sampleRate.load(std::memory_order_relaxed);
+  if (state.sampleRate <= 0.0f) state.sampleRate = 48000.0f;
   state.limitGrDb = shared.limitGrDb.load(std::memory_order_relaxed);
   {
     const int lh = shared.limitHistoryHead.load(std::memory_order_relaxed) &
@@ -685,7 +692,7 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   if (++state.sampleScanTicks >= 60) {
     state.sampleScanTicks = 0;
     state.sampleFiles = listSampleFiles(sampleDir());
-    const int maxScroll = std::max(0, static_cast<int>(state.sampleFiles.size()) - 10);
+    const int maxScroll = std::max(0, static_cast<int>(state.sampleFiles.size()) - 16);
     state.sampleScroll = std::min(std::max(state.sampleScroll, 0), maxScroll);
   }
   const int head = shared.scopeHead.load(std::memory_order_relaxed) &
@@ -925,7 +932,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   const auto sample = shared.sample();
 
   // Waveform well.
-  const double wx = 500, wy = 190, ww = 444, wh = 118;
+  const double wx = 500, wy = 220, ww = 444, wh = 118;
   roundRect(cr, wx, wy, ww, wh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.38);
   cairo_fill(cr);
@@ -961,6 +968,35 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
          skin.legendDim.b);
   }
 
+  if (sample && !sample->data.empty()) {
+    const double start =
+        std::clamp(shared.get(P_SAMPLE_START) * 0.01, 0.0, 1.0);
+    const double mx =
+        shared.get(P_SAMPLE_REVERSE) > 0.5
+            ? wx + 4 + (ww - 8) * (1.0 - start)
+            : wx + 4 + (ww - 8) * start;
+    setRgb(cr, skin.btnOn, 0.65);
+    cairo_set_line_width(cr, 1.5);
+    cairo_move_to(cr, mx, wy + 6);
+    cairo_line_to(cr, mx, wy + wh - 6);
+    cairo_stroke(cr);
+    text(cr, "START", mx + 4, wy + wh - 10, 7.5, 0, skin.btnOn.r, skin.btnOn.g,
+         skin.btnOn.b);
+
+    roundRect(cr, wx + ww - 96, wy + 6, 88, 20, 4);
+    setRgb(cr, {0.0, 0.0, 0.0}, 0.45);
+    cairo_fill(cr);
+    cairo_arc(cr, wx + ww - 83, wy + 16, 4.0, 0, 2 * kPi);
+    const bool active = state.sampleActive || state.sampleVoices > 0;
+    setRgb(cr, active ? skin.btnOn : skin.legendDim, active ? 1.0 : 0.35);
+    cairo_fill(cr);
+    char voices[24];
+    std::snprintf(voices, sizeof(voices), "VOICE %d/4",
+                  std::clamp(state.sampleVoices, 0, 4));
+    text(cr, voices, wx + ww - 74, wy + 20, 8.5, 0, skin.legend.r,
+         skin.legend.g, skin.legend.b);
+  }
+
   text(cr, "SAMPLE WAVEFORM", wx, wy - 10, 9, 0, skin.legendDim.r,
        skin.legendDim.g, skin.legendDim.b);
 
@@ -982,7 +1018,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   }
 
   // File browser.
-  const double bx = 100, by = 190, bw = 380, bh = 240;
+  const double bx = 100, by = 220, bw = 380, bh = 430;
   roundRect(cr, bx, by, bw, bh, 5);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.30);
   cairo_fill(cr);
@@ -1008,12 +1044,12 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
          1, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
   } else {
     const std::string loaded = sample ? sample->name : std::string();
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 16; ++i) {
       const int index = state.sampleScroll + i;
       if (index >= static_cast<int>(state.sampleFiles.size())) break;
       const std::string& name = state.sampleFiles[static_cast<size_t>(index)];
       const bool selected = name == loaded;
-      const double rowY = 232 + i * 23;
+      const double rowY = 262 + i * 23;
       if (selected) {
         roundRect(cr, bx + 8, rowY, bw - 16, 21, 3);
         setRgb(cr, skin.btnOn, 0.20);
@@ -1024,7 +1060,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
            selected ? skin.btnTextOn.g : skin.legend.g,
            selected ? skin.btnTextOn.b : skin.legend.b);
     }
-    if (static_cast<int>(state.sampleFiles.size()) > 8) {
+    if (static_cast<int>(state.sampleFiles.size()) > 16) {
       text(cr, "SCROLL TO BROWSE", bx + bw - 14, by + bh - 8, 8.5, 2,
            skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
     }
@@ -1037,7 +1073,7 @@ void Panel::drawEqPage(cairo_t* cr, const Shared& shared,
   const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
   const Skin skin = skinFor(drum);
 
-  const float sr = 48000.0f;
+  const float sr = state.sampleRate;
   const float lowGain = static_cast<float>((shared.get(P_EQ_LOW) - 0.5) * 24.0);
   const float lowMidGain =
       static_cast<float>((shared.get(P_EQ_LOW_MID) - 0.5) * 24.0);
@@ -1480,8 +1516,12 @@ void Panel::drawLimitPage(cairo_t* cr, const Shared& shared,
                                                : "SAMPLE PEAK",
        cx + 20, cy + 112, 9, 0, skin.legendDim.r, skin.legendDim.g,
        skin.legendDim.b);
-  text(cr, "LATENCY 141 + CHAIN", cx + cw - 20, cy + 112, 9, 2,
-       skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+  char latency[32];
+  const int chainLatency =
+      2 * static_cast<int>(state.sampleRate * 0.002f) + 90;
+  std::snprintf(latency, sizeof(latency), "LATENCY %d", chainLatency);
+  text(cr, latency, cx + cw - 20, cy + 112, 9, 2, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
 
   cairo_arc(cr, cx + cw - 30, cy + 36, 7, 0, 2 * kPi);
   const bool active = state.limitGrDb > 0.1f;
@@ -1818,6 +1858,16 @@ void Panel::drawKnob(cairo_t* cr, const Widget& w, double value,
   }
 
   const ParamSpec& spec = kParamSpecs[w.param];
+  const SuggestedRange range = recommendedRange(w.param);
+  if (!spec.stepped && range.hi > range.lo) {
+    const double f0 = clamp01((range.lo - spec.min) / (spec.max - spec.min));
+    const double f1 = clamp01((range.hi - spec.min) / (spec.max - spec.min));
+    cairo_set_line_width(cr, 4.0);
+    setRgb(cr, skin.btnOn, 0.30);
+    cairo_arc(cr, cx, cy, r + 6, knobAngle(f0), knobAngle(f1));
+    cairo_stroke(cr);
+  }
+
   const double vmax = w.steps > 1 ? w.steps - 1 : spec.max;
   const double span = vmax - spec.min;
   const double frac = span > 0.0 ? (std::min(value, vmax) - spec.min) / span : 0.0;

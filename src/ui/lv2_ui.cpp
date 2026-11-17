@@ -389,6 +389,10 @@ void uiPortEvent(LV2UI_Handle handle, uint32_t port, uint32_t size,
     }
     case kMeterBase + 11: ui->shared.ghostActive.store(v > 0.5f); break;
     case kMeterBase + 12: ui->shared.clipActive.store(v > 0.5f); break;
+    case kMeterBase + 13:
+      ui->shared.sampleVoices.store(static_cast<int>(v + 0.5f));
+      break;
+    case kMeterBase + 14: ui->shared.sampleActive.store(v > 0.5f); break;
     default: break;
   }
 }

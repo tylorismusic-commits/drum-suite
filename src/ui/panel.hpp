@@ -34,6 +34,9 @@ struct PanelState {
   float compGrDb = 0.0f;
   float compHistory[Shared::kScopeSize] = {};
   bool clipActive = false;
+  int sampleVoices = 0;
+  bool sampleActive = false;
+  float sampleRate = 48000.0f;
   float limitGrDb = 0.0f;
   float limitHistory[Shared::kScopeSize] = {};
   std::vector<std::string> sampleFiles;

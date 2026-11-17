@@ -146,11 +146,7 @@ private:
     for (int i = 0; i < n; ++i) {
       const float inL = l[i];
       const float inR = r[i];
-      float peak = std::max(std::fabs(inL), std::fabs(inR));
-      if (osFactor_ == 1) {
-        peak = std::max(peak, tpL_.process(inL));
-        peak = std::max(peak, tpR_.process(inR));
-      }
+      const float peak = std::max(std::fabs(inL), std::fabs(inR));
       const float target = peak > ceiling_ ? ceiling_ / peak : 1.0f;
       if (target < gain_)
         gain_ += (target - gain_) * (1.0f - attackCoeff_);

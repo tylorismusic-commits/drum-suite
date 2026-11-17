@@ -704,6 +704,7 @@ bool pluginActivate(const clap_plugin_t* p, double sampleRate, uint32_t,
                     uint32_t) {
   Plugin* s = self(p);
   s->sampleRate = sampleRate;
+  s->shared.sampleRate.store(static_cast<float>(sampleRate));
   s->engine.prepare(static_cast<float>(sampleRate));
   s->active.store(true, std::memory_order_relaxed);
   // REAPER only picks up a new latency when the plugin calls changed(), so do
@@ -776,6 +777,10 @@ clap_process_status pluginProcess(const clap_plugin_t* p, const clap_process_t* 
   s->shared.grDb.store(s->meters.grDb, std::memory_order_relaxed);
   s->shared.compGrDb.store(s->meters.compGrDb, std::memory_order_relaxed);
   s->shared.clipActive.store(s->meters.clipActive, std::memory_order_relaxed);
+  s->shared.sampleVoices.store(s->meters.sampleVoices, std::memory_order_relaxed);
+  s->shared.sampleActive.store(
+      s->meters.sampleVoices > 0 || s->meters.sampleTriggered,
+      std::memory_order_relaxed);
   s->shared.limitGrDb.store(s->meters.limitGrDb, std::memory_order_relaxed);
   {
     const int h = s->shared.limitHistoryHead.load(std::memory_order_relaxed);

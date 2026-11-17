@@ -59,6 +59,7 @@ Controls base() {
   c.bypass = false;
   c.compOn = false;
   c.driveOn = false;
+  c.clipOn = false;
   c.limitOn = false;
   return c;
 }
@@ -339,6 +340,46 @@ int main() {
     fire[0] = 1;
     player.process(l4.data(), r4.data(), fire.data(), 32, meters);
     check(meters.sampleVoices == 2, "choke off allows overlapping voices");
+
+    // Trigger modes: Gate ignores transients, Transient ignores the gate,
+    // Always accepts either.
+    std::vector<uint8_t> none(64, 0);
+    auto makeHit = [] {
+      std::vector<float> v(64, 0.0f);
+      v[10] = 0.5f;
+      return v;
+    };
+
+    Controls gateOnly = c;
+    gateOnly.sampleTrigger = 0;
+    std::vector<float> hit = makeHit(), hitR = makeHit();
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(gateOnly);
+    player.process(hit.data(), hitR.data(), none.data(), 64, meters);
+    check(!meters.sampleTriggered,
+          "Gate trigger ignores an un-gated input transient");
+
+    Controls transient = c;
+    transient.sampleTrigger = 1;
+    hit = makeHit();
+    hitR = makeHit();
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(transient);
+    player.process(hit.data(), hitR.data(), none.data(), 64, meters);
+    check(meters.sampleTriggered,
+          "Transient trigger fires from the input without a gate event");
+
+    Controls always = c;
+    always.sampleTrigger = 2;
+    std::vector<uint8_t> gateFire(64, 0);
+    gateFire[0] = 1;
+    hit = makeHit();
+    hitR = makeHit();
+    player.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+    player.setControls(always);
+    player.process(hit.data(), hitR.data(), gateFire.data(), 64, meters);
+    check(meters.sampleTriggered,
+          "Always trigger accepts a gate event");
   }
 
   {
@@ -384,7 +425,7 @@ int main() {
     Controls comp = base();
     comp.gateOn = false;
     comp.compOn = true;
-    comp.compThresholdDb = -30.0f;
+    comp.compThresholdDb = -15.0f;
     comp.compRatio = 6.0f;
     comp.compAttack = 0.1f;
     comp.compRelease = 0.35f;
@@ -585,6 +626,89 @@ int main() {
       tpPeak = std::max(tpPeak, std::fabs(tp.l[i]));
     check(finite(tp.l) && tpPeak <= 0.504f,
           "true-peak limiter holds the ceiling");
+  }
+
+
+  {
+    // Power is a full-chain bypass, not just a gate bypass.
+    Controls c = base();
+    c.power = false;
+    c.compOn = true;
+    c.driveOn = true;
+    c.clipOn = true;
+    c.limitOn = true;
+    c.eqLow = 1.0f;
+    std::vector<float> in(2048);
+    for (size_t i = 0; i < in.size(); ++i)
+      in[i] = 0.20f * std::sin(2.0f * 3.14159265f * 220.0f * i / kSr);
+    Render r = run(c, in);
+    const int latency = 282;
+    float err = 0.0f;
+    for (size_t i = latency; i < in.size(); ++i)
+      err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
+    check(err < 1e-6f, "power off bypasses the whole chain");
+  }
+
+  {
+    // The complete chain runs at other host rates with sane output and a
+    // stable reported latency.
+    for (float sr : {44100.0f, 96000.0f}) {
+      Engine engine;
+      engine.prepare(sr);
+      Controls c = base();
+      c.gateOn = true;
+      c.compOn = true;
+      c.driveOn = true;
+      c.clipOn = true;
+      c.limitOn = true;
+      c.eqLow = 0.75f;
+      c.eqHighMid = 0.60f;
+      c.clipMix = 0.30f;
+      c.limitMix = 1.0f;
+      engine.setControls(c);
+
+      auto buffer = std::make_shared<SampleBuffer>();
+      buffer->data.assign(4800, 0.1f);
+      buffer->sampleRate = 48000;
+      engine.setSample(std::shared_ptr<const SampleBuffer>(buffer));
+
+      const int n = static_cast<int>(sr * 0.25f);
+      std::vector<float> l(static_cast<size_t>(n)), r(static_cast<size_t>(n));
+      for (int i = 0; i < n; ++i) {
+        l[static_cast<size_t>(i)] =
+            0.4f * std::sin(2.0f * 3.14159265f * 120.0f * i / sr);
+        r[static_cast<size_t>(i)] =
+            0.4f * std::cos(2.0f * 3.14159265f * 120.0f * i / sr);
+      }
+      Meters meters;
+      for (int off = 0; off < n; off += 128) {
+        const int len = std::min(128, n - off);
+        engine.process(l.data() + off, r.data() + off, len, meters);
+      }
+      float peak = 0.0f;
+      for (float v : l) peak = std::max(peak, std::fabs(v));
+      const int expected = 2 * static_cast<int>(sr * 0.002f) + 90;
+      std::printf("  full chain %.0f Hz: peak %.3f, latency %d\n", sr, peak,
+                  engine.latencySamples());
+      check(finite(l) && finite(r), "full chain stays finite at other rates");
+      check(peak < 8.0f, "full chain does not run away at other rates");
+      check(engine.latencySamples() == expected,
+            "full chain latency matches the sample rate");
+    }
+  }
+
+  {
+    bool rangesOk = true;
+    int rangeCount = 0;
+    for (uint32_t id = 0; id < P_COUNT; ++id) {
+      const SuggestedRange r = recommendedRange(id);
+      if (r.hi <= r.lo) continue;
+      ++rangeCount;
+      const ParamSpec& spec = kParamSpecs[id];
+      if (r.lo < spec.min || r.hi > spec.max || spec.stepped) rangesOk = false;
+    }
+    check(rangeCount >= 20 && rangesOk,
+          "suggested ranges are valid and inside every parameter range");
   }
 
   std::printf("%d failure(s)\n", gFailures);

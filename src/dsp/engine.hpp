@@ -63,7 +63,7 @@ public:
       std::fill(triggers_.begin(), triggers_.begin() + n, 0);
       gate_.process(left + offset, right + offset, n, meters, triggers_.data());
       float peakL = 0.0f, peakR = 0.0f;
-      if (controls_.bypass) {
+      if (!controls_.power || controls_.bypass) {
         meters.sampleVoices = 0;
         meters.sampleTriggered = false;
         meters.compGrDb = 0.0f;

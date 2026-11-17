@@ -79,6 +79,7 @@ public:
 
   void process(float* left, float* right, int frames, Meters& meters) noexcept {
     bool clipped = false;
+    if (!on_ || mix_ <= 0.0001f) gain_ = 1.0f;
     double inPow = 0.0;
     for (int i = 0; i < frames; ++i)
       inPow += static_cast<double>(left[i]) * left[i] +
@@ -146,7 +147,7 @@ public:
                  static_cast<double>(right[i]) * right[i];
 
     float target = 1.0f;
-    if (autoGain_ && on_ && outPow_ > 1e-12)
+    if (autoGain_ && on_ && mix_ > 0.0001f && outPow_ > 1e-12)
       target = std::min(1.0f, static_cast<float>(std::sqrt(inPow / outPow_)));
     gain_ += (target - gain_) * 0.15f;
     if (gain_ != 1.0f) {
