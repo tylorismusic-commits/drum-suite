@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.0 — 2026-11-17
+## 0.9.0-alpha.1 — public alpha — 2026-11-17
 
 - Added a stereo-linked transient shaper before the compressor on the COMP
   page: bipolar Attack and Sustain, sensitivity and bypass.

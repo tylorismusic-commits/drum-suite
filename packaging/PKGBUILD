@@ -1,6 +1,7 @@
 # Maintainer: tylor <tylorismusic@users.noreply.github.com>
 pkgname=drum-suite
 pkgver=0.9.0
+_tag=0.9.0-alpha.1
 pkgrel=1
 pkgdesc="Drum channel strip with Bleed Out, sample, EQ, comp, drive, clip and limiter (CLAP + LV2)"
 arch=('x86_64')
@@ -8,11 +9,11 @@ url="https://github.com/tylorismusic-commits/drum-suite"
 license=('GPL-3.0-or-later')
 depends=('cairo' 'freetype2' 'libx11' 'lv2')
 makedepends=('cmake' 'pkgconf' 'lilv' 'libxtst' 'xorg-server-xvfb')
-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+source=("$pkgname-$_tag.tar.gz::$url/archive/v$_tag.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-  cmake -S "$pkgname-$pkgver" -B build \
+  cmake -S "$pkgname-$_tag" -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build build -j"$(nproc)"

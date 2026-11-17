@@ -1,6 +1,10 @@
 # Drum Suite
 
-**Version 0.9.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0-alpha.1 — Linux x86_64** · GPL-3.0-or-later
+
+> **Public alpha.** The full seven-page chain is usable, but factory presets
+> and final tuning are planned after feedback. Expect parameter/preset changes;
+> use it on copies of important sessions.
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -258,7 +262,7 @@ Suite plugins:
   full-chain rates, power bypass, recommended guide, panel loading, layout,
   geometry and TTL.
 
-Next: release QA.
+Next: after this alpha, factory presets, tuning and release QA.
 
 ## Licence
 
