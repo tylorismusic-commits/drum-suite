@@ -75,6 +75,8 @@ inline constexpr int kDrumCount = 8;
 inline constexpr const char* kCompModelLabels[] = {"76", "2A", "VCA"};
 inline constexpr const char* kDriveModelLabels[] = {"VALVE", "CONSOLE", "BUS",
                                                     "TAPE", "TRANSFORMER"};
+inline constexpr const char* kClipShapeLabels[] = {"SOFT", "HARD", "DIODE"};
+inline constexpr const char* kOversampleLabels[] = {"OFF", "2X", "4X"};
 
 struct CompDefaults {
   int model;
@@ -105,6 +107,27 @@ inline constexpr DriveDefaults kDriveDefaults[8] = {
     {3, 0.50f, 0.55f, 0.50f, 0.35f, true},  // Room
     {3, 0.40f, 0.50f, 0.55f, 0.30f, true},  // OH
     {2, 0.45f, 0.55f, 0.50f, 0.30f, true},  // Bus
+};
+
+struct ClipDefaults {
+  bool on;
+  int shape;
+  float drive;
+  float ceiling;
+  float mix;
+  int oversample;
+  bool autoGain;
+};
+
+inline constexpr ClipDefaults kClipDefaults[8] = {
+    {true, 0, 0.35f, 0.85f, 0.25f, 1, true},  // Kick
+    {true, 2, 0.45f, 0.85f, 0.30f, 2, true},  // Snare
+    {true, 0, 0.30f, 0.85f, 0.20f, 1, true},  // Tom
+    {false, 0, 0.20f, 0.90f, 0.00f, 1, true}, // Hat
+    {false, 0, 0.20f, 0.90f, 0.00f, 1, true}, // Ride
+    {true, 0, 0.35f, 0.85f, 0.20f, 1, true},  // Room
+    {false, 0, 0.25f, 0.90f, 0.00f, 1, true}, // OH
+    {true, 2, 0.40f, 0.85f, 0.30f, 2, true},  // Bus
 };
 
 inline constexpr CompDefaults kCompDefaults[8] = {
@@ -184,6 +207,15 @@ struct Controls {
   float driveMix = 0.35f;
   bool driveAutoGain = true;
 
+  // Clipper.
+  bool clipOn = false;
+  int clipShape = 0;        // 0 Soft, 1 Hard, 2 Diode
+  float clipDrive = 0.35f;
+  float clipCeiling = 0.85f;
+  float clipMix = 0.25f;
+  int clipOversample = 1;   // 0 Off, 1 2x, 2 4x
+  bool clipAutoGain = true;
+
   // Sample loader.
   bool sampleOn = false;
   float sampleLevel = 80.0f;    // 0..100
@@ -210,6 +242,7 @@ struct Meters {
   int sampleVoices = 0;
   bool sampleTriggered = false;
   float compGrDb = 0.0f;
+  bool clipActive = false;
 };
 
 } // namespace drum

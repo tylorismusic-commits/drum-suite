@@ -25,6 +25,7 @@ struct Render {
   std::vector<float> l, r;
   Meters meters;
   float maxCompGrDb = 0.0f;
+  bool clipSeen = false;
 };
 
 Render run(const Controls& c, const std::vector<float>& in) {
@@ -41,6 +42,7 @@ Render run(const Controls& c, const std::vector<float>& in) {
     const int len = std::min(128, n - start);
     engine.process(out.l.data() + start, out.r.data() + start, len, out.meters);
     out.maxCompGrDb = std::max(out.maxCompGrDb, out.meters.compGrDb);
+    out.clipSeen = out.clipSeen || out.meters.clipActive;
   }
   return out;
 }
@@ -101,7 +103,7 @@ int main() {
     for (size_t i = 0; i < in.size(); ++i)
       in[i] = 0.25f * std::sin(2.0f * 3.14159265f * 220.0f * i / kSr);
     Render r = run(c, in);
-    const int latency = static_cast<int>(kSr * 0.002f);  // fixed lookahead
+    const int latency = static_cast<int>(kSr * 0.002f) + 45;  // gate + clip
     float err = 0.0f;
     for (size_t i = latency; i < in.size(); ++i)
       err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
@@ -119,7 +121,7 @@ int main() {
     for (size_t i = 0; i < in.size(); ++i)
       in[i] = 0.25f * std::sin(2.0f * 3.14159265f * 220.0f * i / kSr);
     Render r = run(c, in);
-    const int latency = static_cast<int>(kSr * 0.002f);
+    const int latency = static_cast<int>(kSr * 0.002f) + 45;
     float err = 0.0f;
     for (size_t i = latency; i < in.size(); ++i)
       err = std::max(err, std::fabs(r.l[i] - in[i - latency]));
@@ -241,14 +243,15 @@ int main() {
     Render rOff = run(off, in);
     Render rOn = run(on, in);
 
-    const int qa = static_cast<int>(kSr * 0.36f);
-    const int qb = static_cast<int>(kSr * 0.56f);
-    const int aa = static_cast<int>(kSr * 0.100f);  // first 6 ms: the attack
-    const int ab = static_cast<int>(kSr * 0.106f);
-    const int sa = static_cast<int>(kSr * 0.125f);  // 25-55 ms: the sustain
-    const int sb = static_cast<int>(kSr * 0.155f);
-    const int ha = static_cast<int>(kSr * 0.105f);
-    const int hb = static_cast<int>(kSr * 0.145f);
+    const int od = 45;  // clipper latency
+    const int qa = static_cast<int>(kSr * 0.36f) + od;
+    const int qb = static_cast<int>(kSr * 0.56f) + od;
+    const int aa = static_cast<int>(kSr * 0.100f) + od;  // first 6 ms: attack
+    const int ab = static_cast<int>(kSr * 0.106f) + od;
+    const int sa = static_cast<int>(kSr * 0.125f) + od;  // 25-55 ms: sustain
+    const int sb = static_cast<int>(kSr * 0.155f) + od;
+    const int ha = static_cast<int>(kSr * 0.105f) + od;
+    const int hb = static_cast<int>(kSr * 0.145f) + od;
     const double bleedOff = toneLevel(rOff.l, qa, qb, 8000.0);
     const double bleedOn = toneLevel(rOn.l, qa, qb, 8000.0);
     const double bodyOff = toneLevel(rOff.l, ha, hb, 200.0);
@@ -473,6 +476,70 @@ int main() {
     check(std::fabs(db(autoRms) - db(dryRms)) <
               std::fabs(db(noRms) - db(dryRms)) + 0.5,
           "drive auto gain restores the level");
+  }
+
+
+  {
+    // Clipper: hard clip holds the ceiling, all shapes stay finite, mix 0 is
+    // the latency-aligned dry path, and the mode does not change latency.
+    const int n = static_cast<int>(kSr * 0.5f);
+    std::vector<float> tone(n);
+    for (int i = 0; i < n; ++i)
+      tone[i] = 0.8f * std::sin(2.0f * 3.14159265f * 1000.0f * i / kSr);
+
+    Controls clip = base();
+    clip.gateOn = false;
+    clip.clipOn = true;
+    clip.clipDrive = 1.0f;
+    clip.clipCeiling = 0.5f;  // -6 dB
+    clip.clipShape = 1;       // hard
+    clip.clipMix = 1.0f;
+    clip.clipOversample = 0;
+    clip.clipAutoGain = false;
+
+    const double ceil = std::pow(10.0, -6.0 / 20.0);
+    Render hard = run(clip, tone);
+    float peak = 0.0f;
+    for (size_t i = 2000; i < tone.size(); ++i)
+      peak = std::max(peak, std::fabs(hard.l[i]));
+    std::printf("  clip hard peak %.3f (ceiling %.3f)\n", peak, ceil);
+    check(peak <= static_cast<float>(ceil * 1.02),
+          "hard clip holds the ceiling");
+    check(hard.clipSeen, "clip LED reports clipping");
+
+    for (int shape = 0; shape < 3; ++shape) {
+      clip.clipShape = shape;
+      Render r = run(clip, tone);
+      float p = 0.0f;
+      for (size_t i = 2000; i < tone.size(); ++i)
+        p = std::max(p, std::fabs(r.l[i]));
+      check(finite(r.l) && finite(r.r), "clip shape output is finite");
+      check(p <= static_cast<float>(ceil * 1.02),
+            "clip shape respects the ceiling");
+    }
+
+    clip.clipShape = 0;
+    clip.clipMix = 0.0f;
+    Controls flat = base();
+    flat.gateOn = false;
+    Render dry = run(clip, tone);
+    Render straight = run(flat, tone);
+    float err = 0.0f;
+    for (size_t i = 2000; i < tone.size(); ++i)
+      err = std::max(err, std::fabs(dry.l[i] - straight.l[i]));
+    check(err < 1e-6f, "clip mix 0 is the latency-aligned dry path");
+
+    clip.clipMix = 1.0f;
+    for (int os = 0; os < 3; ++os) {
+      clip.clipOversample = os;
+      Render r = run(clip, tone);
+      check(finite(r.l) && finite(r.r), "clip oversampling stays finite");
+    }
+
+    Engine engine;
+    engine.prepare(kSr);
+    check(engine.latencySamples() == 141,
+          "gate plus clipper reports 141 samples of latency");
   }
 
   std::printf("%d failure(s)\n", gFailures);

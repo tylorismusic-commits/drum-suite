@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 — 2026-11-17
+
+- CLIP page with Soft, Hard and Diode shapes.
+- Drive, Ceiling, Mix, Auto Gain and a 250 ms clip LED.
+- 1x / 2x / 4x oversampling with a fixed 45-sample clipper latency in every
+  mode.
+- Soft and diode shapes use ADAA; hard clip is an exact clamp.
+- Per-profile clip defaults.
+- Tests: ceiling enforcement, clip LED, shape safety, mix bypass, oversampling
+  and reported latency.
+
 ## 0.4.0 — 2026-11-17
 
 - DRIVE page with five Patina models: Valve, Console, Bus, Tape and

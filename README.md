@@ -1,10 +1,10 @@
 # Drum Suite
 
-**Version 0.4.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.5.0 — Linux x86_64** · GPL-3.0-or-later
 
 A drum channel strip in the Suite visual language. **Bleed Out**, **Sample**,
-**EQ**, **Comp** and **Drive** are working; Clip and Limit follow in the next
-milestones.
+**EQ**, **Comp**, **Drive** and **Clip** are working; Limit follows in the next
+milestone.
 
 ![Drum Suite — Bleed Out](docs/kick.png)
 
@@ -23,7 +23,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 | **EQ** | Working: low shelf, two peaks, high shelf, HPF/LPF + curve |
 | **COMP** | Working: 76 / 2A / VCA models, GR history |
 | **DRIVE** | Working: Valve, Console, Bus, Tape, Transformer + auto gain |
-| **CLIP** | Scaffolded; soft / hard / diode next |
+| **CLIP** | Working: soft / hard / diode, 1x/2x/4x, ceiling and clip LED |
 | **LIMIT** | Scaffolded; true-peak safety next |
 
 The drum selector across the top chooses the profile: **Kick, Snare, Tom, Hat,
@@ -115,6 +115,23 @@ same shaper curve as the audio path.
 
 ![Drum Suite — Drive](docs/drive.png)
 
+## Clip
+
+A controllable clipper after the drive stage:
+
+- **Soft** — rounded knee that keeps the hit together.
+- **Hard** — flat top for a dense, obvious clip.
+- **Diode** — asymmetric clipping with even harmonics.
+- Drive pushes into the ceiling; Ceiling sets the output limit (−12…0 dB).
+- Mix blends the clipped and dry paths.
+- Oversampling **1x / 2x / 4x**. The output is always padded to the same
+  45-sample latency, so host delay compensation does not jump when the mode
+  changes.
+- **Auto Gain** only attenuates, so the ceiling still holds.
+- The clip LED holds for 250 ms.
+
+![Drum Suite — Clip](docs/clip.png)
+
 ## Build
 
 Requires CMake 3.16+, a C++20 compiler, Cairo, FreeType, X11 and LV2.
@@ -137,7 +154,7 @@ cmake --install build
 
 ## Status
 
-0.4.0 adds the drive stage to the Sample/EQ/Comp build:
+0.5.0 adds the clipper to the Sample/EQ/Comp/Drive build:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
@@ -148,11 +165,14 @@ cmake --install build
   HPF; per-profile compressor defaults.
 - DRIVE page: Valve, Console, Bus, Tape and Transformer models, transfer curve
   and auto gain; per-profile drive defaults.
-- Placeholder pages for Clip and Limit.
-- Tests: DSP, sample player, EQ response, compressor models, drive models and
-  auto gain, panel loading, layout, geometry and TTL.
+- CLIP page: soft/hard/diode shapes, drive, ceiling, mix, 1x/2x/4x
+  oversampling, auto gain and a clip LED.
+- Fixed 45-sample clipper latency in every oversampling mode.
+- Placeholder page for Limit.
+- Tests: DSP, sample player, EQ response, compressor models, drive models,
+  clipper shapes/ceiling/latency, panel loading, layout, geometry and TTL.
 
-Next: Clip, then Limit.
+Next: Limit.
 
 ## Licence
 

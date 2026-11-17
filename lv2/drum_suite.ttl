@@ -24,7 +24,7 @@
     ] ;
     doap:homepage <https://github.com/tylorismusic-commits/drum-suite> ;
     lv2:majorVersion 0 ;
-    lv2:minorVersion 4 ;
+    lv2:minorVersion 5 ;
     lv2:microVersion 0 ;
     lv2:binary <drum_suite.so> ;
     rdfs:seeAlso <manifest.ttl> ;
@@ -559,8 +559,93 @@
         pg:group <https://github.com/tylorismusic-commits/drum-suite#drive> ;
     ] ,
     [
-        a lv2:OutputPort , lv2:ControlPort ;
+        a lv2:InputPort , lv2:ControlPort ;
         lv2:index 47 ;
+        lv2:symbol "clip_on" ;
+        lv2:name "Clip On" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:toggled true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 48 ;
+        lv2:symbol "clip_drive" ;
+        lv2:name "Drive" ;
+        lv2:default 0.35 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:pc ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 49 ;
+        lv2:symbol "clip_ceiling" ;
+        lv2:name "Ceiling" ;
+        lv2:default 0.85 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:db ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 50 ;
+        lv2:symbol "clip_shape" ;
+        lv2:name "Shape" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
+        lv2:integer true ;
+        lv2:scalePoint [ rdf:value 0 ; rdfs:label "SOFT" ] ,
+            [ rdf:value 1 ; rdfs:label "HARD" ] ,
+            [ rdf:value 2 ; rdfs:label "DIODE" ] ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 51 ;
+        lv2:symbol "clip_mix" ;
+        lv2:name "Mix" ;
+        lv2:default 0.25 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        units:unit units:pc ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 52 ;
+        lv2:symbol "clip_oversample" ;
+        lv2:name "Oversample" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
+        lv2:integer true ;
+        lv2:scalePoint [ rdf:value 0 ; rdfs:label "OFF" ] ,
+            [ rdf:value 1 ; rdfs:label "2X" ] ,
+            [ rdf:value 2 ; rdfs:label "4X" ] ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 53 ;
+        lv2:symbol "clip_auto_gain" ;
+        lv2:name "Auto Gain" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:toggled true ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#clip> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 54 ;
         lv2:symbol "in_peak_l" ;
         lv2:name "Input Peak Left" ;
         lv2:default 0 ;
@@ -571,7 +656,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 48 ;
+        lv2:index 55 ;
         lv2:symbol "in_peak_r" ;
         lv2:name "Input Peak Right" ;
         lv2:default 0 ;
@@ -582,7 +667,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 49 ;
+        lv2:index 56 ;
         lv2:symbol "out_peak_l" ;
         lv2:name "Output Peak Left" ;
         lv2:default 0 ;
@@ -593,7 +678,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 50 ;
+        lv2:index 57 ;
         lv2:symbol "out_peak_r" ;
         lv2:name "Output Peak Right" ;
         lv2:default 0 ;
@@ -604,7 +689,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 51 ;
+        lv2:index 58 ;
         lv2:symbol "in_peak" ;
         lv2:name "Input Peak" ;
         lv2:default 0 ;
@@ -615,7 +700,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 52 ;
+        lv2:index 59 ;
         lv2:symbol "out_peak" ;
         lv2:name "Output Peak" ;
         lv2:default 0 ;
@@ -626,7 +711,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 53 ;
+        lv2:index 60 ;
         lv2:symbol "gr" ;
         lv2:name "Gain Reduction" ;
         lv2:default 0 ;
@@ -637,7 +722,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 54 ;
+        lv2:index 61 ;
         lv2:symbol "detector" ;
         lv2:name "Detector" ;
         lv2:default 0 ;
@@ -648,7 +733,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 55 ;
+        lv2:index 62 ;
         lv2:symbol "comp_gr" ;
         lv2:name "Compressor Gain Reduction" ;
         lv2:default 0 ;
@@ -659,7 +744,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 56 ;
+        lv2:index 63 ;
         lv2:symbol "gate" ;
         lv2:name "Gate" ;
         lv2:default 1 ;
@@ -670,7 +755,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 57 ;
+        lv2:index 64 ;
         lv2:symbol "ghost_active" ;
         lv2:name "Ghost Active" ;
         lv2:default 0 ;
@@ -682,7 +767,19 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 58 ;
+        lv2:index 65 ;
+        lv2:symbol "clip_active" ;
+        lv2:name "Clip Active" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:integer true ;
+        lv2:portProperty pprops:notOnGUI ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#meter> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 66 ;
         lv2:symbol "latency" ;
         lv2:name "Latency" ;
         lv2:default 0 ;
@@ -694,7 +791,7 @@
     ] ,
     [
         a atom:AtomPort , lv2:InputPort ;
-        lv2:index 59 ;
+        lv2:index 67 ;
         lv2:symbol "midi_in" ;
         lv2:name "MIDI In" ;
         atom:bufferType atom:Sequence ;
@@ -720,6 +817,8 @@
 <https://github.com/tylorismusic-commits/drum-suite#comp> a pg:Group ; lv2:name "Comp" .
 
 <https://github.com/tylorismusic-commits/drum-suite#drive> a pg:Group ; lv2:name "Drive" .
+
+<https://github.com/tylorismusic-commits/drum-suite#clip> a pg:Group ; lv2:name "Clip" .
 
 <https://github.com/tylorismusic-commits/drum-suite#meter> a pg:Group ; lv2:name "Meter" .
 

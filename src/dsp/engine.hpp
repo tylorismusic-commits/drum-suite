@@ -12,6 +12,7 @@
 #include <hdsp/db.hpp>
 
 #include "bleedout.hpp"
+#include "clip.hpp"
 #include "compressor.hpp"
 #include "controls.hpp"
 #include "drive.hpp"
@@ -27,6 +28,7 @@ public:
     samplePlayer_.prepare(sr_);
     comp_.prepare(sr_);
     drive_.prepare(sr_);
+    clip_.prepare(sr_);
     maxBlock_ = std::max(1024, maxBlock > 0 ? maxBlock : 8192);
     triggers_.assign(static_cast<size_t>(maxBlock_), 0);
     applyEq(controls_);
@@ -41,6 +43,7 @@ public:
     applyEq(c);
     comp_.setControls(c);
     drive_.setControls(c);
+    clip_.setControls(c);
   }
 
   void setSample(std::shared_ptr<const SampleBuffer> sample) noexcept {
@@ -61,6 +64,8 @@ public:
         meters.sampleVoices = 0;
         meters.sampleTriggered = false;
         meters.compGrDb = 0.0f;
+        meters.clipActive = false;
+        clip_.processBypass(left + offset, right + offset, n);
         for (int i = offset; i < offset + n; ++i) {
           peakL = std::max(peakL, std::fabs(left[i]));
           peakR = std::max(peakR, std::fabs(right[i]));
@@ -103,6 +108,7 @@ public:
       }
       comp_.process(left + offset, right + offset, n, meters);
       drive_.process(left + offset, right + offset, n);
+      clip_.process(left + offset, right + offset, n, meters);
       for (int i = offset; i < offset + n; ++i) {
         peakL = std::max(peakL, std::fabs(left[i]));
         peakR = std::max(peakR, std::fabs(right[i]));
@@ -119,6 +125,7 @@ public:
     samplePlayer_.reset();
     comp_.reset();
     drive_.reset();
+    clip_.reset();
     eqLowL_.reset();
     eqLowR_.reset();
     eqLowMidL_.reset();
@@ -133,7 +140,9 @@ public:
     eqLpR_.reset();
   }
 
-  int latencySamples() const noexcept { return gate_.latencySamples(); }
+  int latencySamples() const noexcept {
+    return gate_.latencySamples() + clip_.latencySamples();
+  }
 
 private:
   void applyEq(const Controls& c) noexcept {
@@ -177,6 +186,7 @@ private:
   SamplePlayer samplePlayer_;
   Compressor comp_;
   Drive drive_;
+  Clip clip_;
   std::shared_ptr<const SampleBuffer> loadedSample_;
   std::vector<uint8_t> triggers_;
   bool eqFlat_ = true;

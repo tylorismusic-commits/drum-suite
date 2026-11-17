@@ -96,6 +96,11 @@ int main(int argc, char** argv) {
                                     std::memory_order_relaxed);
       }
       shared.compHistoryHead.store(0);
+    } else if (page == 5) {
+      shared.set(P_CLIP_ON, 1.0);
+      shared.set(P_CLIP_SHAPE, 2.0);
+      shared.set(P_CLIP_CEILING, 0.85);
+      shared.clipActive.store(true, std::memory_order_relaxed);
     } else if (page == 2) {
       shared.set(P_EQ_LOW, 0.75);
       shared.set(P_EQ_LOW_MID, 0.40);

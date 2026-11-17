@@ -55,6 +55,13 @@ enum ParamId : uint32_t {
   P_DRIVE_TONE,
   P_DRIVE_MIX,
   P_DRIVE_AUTOGAIN,
+  P_CLIP_ON,
+  P_CLIP_DRIVE,
+  P_CLIP_CEILING,
+  P_CLIP_SHAPE,
+  P_CLIP_MIX,
+  P_CLIP_OVERSAMPLE,
+  P_CLIP_AUTOGAIN,
   P_COUNT
 };
 
@@ -157,6 +164,17 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"drive_mix", "Mix", "Drive", 0.0, 1.0, 0.35, false, false, false, "%", {}},
     {"drive_auto_gain", "Auto Gain", "Drive", 0.0, 1.0, 1.0, true, false, true,
      nullptr, {}},
+    {"clip_on", "Clip On", "Clip", 0.0, 1.0, 0.0, true, false, true, nullptr, {}},
+    {"clip_drive", "Drive", "Clip", 0.0, 1.0, 0.35, false, false, false, "%", {}},
+    {"clip_ceiling", "Ceiling", "Clip", 0.0, 1.0, 0.85, false, false, false, "dB",
+     {}},
+    {"clip_shape", "Shape", "Clip", 0.0, 2.0, 0.0, true, false, false, nullptr,
+     labels(kClipShapeLabels)},
+    {"clip_mix", "Mix", "Clip", 0.0, 1.0, 0.25, false, false, false, "%", {}},
+    {"clip_oversample", "Oversample", "Clip", 0.0, 2.0, 1.0, true, false, false,
+     nullptr, labels(kOversampleLabels)},
+    {"clip_auto_gain", "Auto Gain", "Clip", 0.0, 1.0, 1.0, true, false, true,
+     nullptr, {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -182,6 +200,7 @@ public:
     gate.store(1.0f);
     ghostActive.store(false);
     compGrDb.store(0.0f);
+    clipActive.store(false);
     compHistoryHead.store(0);
     scopeHead.store(0);
     for (int i = 0; i < kScopeSize; ++i) {
@@ -245,6 +264,7 @@ public:
   std::atomic<float> grDb, detectorDb, gate;
   std::atomic<bool> ghostActive;
   std::atomic<float> compGrDb;
+  std::atomic<bool> clipActive;
   std::atomic<float> compHistory[kScopeSize];
   std::atomic<int> compHistoryHead;
   std::atomic<uint32_t> midiGhostTrigger{0};
@@ -280,6 +300,14 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_DRIVE_TONE, d.tone);
   s.set(P_DRIVE_MIX, d.mix);
   s.set(P_DRIVE_AUTOGAIN, d.autoGain ? 1.0 : 0.0);
+  const ClipDefaults& cl = kClipDefaults[drum];
+  s.set(P_CLIP_ON, cl.on ? 1.0 : 0.0);
+  s.set(P_CLIP_SHAPE, cl.shape);
+  s.set(P_CLIP_DRIVE, cl.drive);
+  s.set(P_CLIP_CEILING, cl.ceiling);
+  s.set(P_CLIP_MIX, cl.mix);
+  s.set(P_CLIP_OVERSAMPLE, cl.oversample);
+  s.set(P_CLIP_AUTOGAIN, cl.autoGain ? 1.0 : 0.0);
 }
 
 inline Controls controlsFrom(Shared& s) noexcept {
@@ -328,6 +356,13 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.driveTone = static_cast<float>(s.get(P_DRIVE_TONE));
   c.driveMix = static_cast<float>(s.get(P_DRIVE_MIX));
   c.driveAutoGain = s.get(P_DRIVE_AUTOGAIN) > 0.5;
+  c.clipOn = s.get(P_CLIP_ON) > 0.5;
+  c.clipShape = static_cast<int>(s.get(P_CLIP_SHAPE) + 0.5);
+  c.clipDrive = static_cast<float>(s.get(P_CLIP_DRIVE));
+  c.clipCeiling = static_cast<float>(s.get(P_CLIP_CEILING));
+  c.clipMix = static_cast<float>(s.get(P_CLIP_MIX));
+  c.clipOversample = static_cast<int>(s.get(P_CLIP_OVERSAMPLE) + 0.5);
+  c.clipAutoGain = s.get(P_CLIP_AUTOGAIN) > 0.5;
   return c;
 }
 

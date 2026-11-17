@@ -154,6 +154,22 @@ int main() {
     panel.pointerDown(shared, state, 778, 196, false);
     panel.pointerUp();
     check(shared.get(P_DRIVE_AUTOGAIN) == 0.0, "Auto Gain pill toggles off");
+
+    // Clip page: shape and oversampling tabs.
+    panel.pointerDown(shared, state, 802, 87, false);
+    panel.pointerUp();
+    check(state.page == 5, "Clip page tab selects the Clip page");
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 316, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_CLIP_SHAPE) == 2.0, "Diode shape tab selects Diode");
+    panel.pointerDown(shared, state, 348, 228, false);
+    panel.pointerUp();
+    check(shared.get(P_CLIP_OVERSAMPLE) == 2.0, "4X tab selects 4x oversampling");
+    check(shared.get(P_CLIP_ON) == 1.0, "Kick profile enables the clip stage");
+    panel.pointerDown(shared, state, 447, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_CLIP_ON) == 0.0, "CLIP ON pill disables the clipper");
   }
 
   {

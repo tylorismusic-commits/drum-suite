@@ -380,6 +380,7 @@ void uiPortEvent(LV2UI_Handle handle, uint32_t port, uint32_t size,
       break;
     }
     case kMeterBase + 10: ui->shared.ghostActive.store(v > 0.5f); break;
+    case kMeterBase + 11: ui->shared.clipActive.store(v > 0.5f); break;
     default: break;
   }
 }

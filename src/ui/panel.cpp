@@ -5,6 +5,7 @@
 
 #include "presets.hpp"
 #include "value_text.hpp"
+#include "dsp/clip.hpp"
 #include "dsp/drive/saturation.hpp"
 #include "dsp/wav.hpp"
 
@@ -446,6 +447,37 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     knob(P_DRIVE_CHARACTER, 300, 465, 28, "CHARACTER");
     knob(P_DRIVE_TONE, 450, 465, 28, "TONE");
     knob(P_DRIVE_MIX, 600, 465, 28, "MIX");
+  } else if (state.page == 5) {
+    // Clip: shape and oversampling tabs, then the transfer curve.
+    for (int i = 0; i < 3; ++i) {
+      Widget b{};
+      b.kind = Kind::Button;
+      b.param = P_CLIP_SHAPE;
+      b.value = i;
+      b.x = 52.0 + i * 108.0;
+      b.y = 182.0;
+      b.w = 96.0;
+      b.h = 28.0;
+      b.label = kClipShapeLabels[i];
+      widgets_.push_back(b);
+    }
+    pill(P_CLIP_ON, 392, 182, 110, 28, "CLIP ON");
+    pill(P_CLIP_AUTOGAIN, 516, 182, 120, 28, "AUTO GAIN");
+    for (int i = 0; i < 3; ++i) {
+      Widget b{};
+      b.kind = Kind::Button;
+      b.param = P_CLIP_OVERSAMPLE;
+      b.value = i;
+      b.x = 160.0 + i * 76.0;
+      b.y = 216.0;
+      b.w = 68.0;
+      b.h = 24.0;
+      b.label = kOversampleLabels[i];
+      widgets_.push_back(b);
+    }
+    knob(P_CLIP_DRIVE, 200, 520, 28, "DRIVE");
+    knob(P_CLIP_CEILING, 420, 520, 28, "CEILING");
+    knob(P_CLIP_MIX, 640, 520, 28, "MIX");
   }
 
   // Global.  Power is the bypass; the bottom corners are just trim.
@@ -622,6 +654,7 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   state.gate = shared.gate.load(std::memory_order_relaxed);
   state.ghostActive = shared.ghostActive.load(std::memory_order_relaxed);
   state.compGrDb = shared.compGrDb.load(std::memory_order_relaxed);
+  state.clipActive = shared.clipActive.load(std::memory_order_relaxed);
   {
     const int ch = shared.compHistoryHead.load(std::memory_order_relaxed) &
                    (Shared::kScopeSize - 1);
@@ -666,6 +699,8 @@ void Panel::draw(cairo_t* cr, Shared& shared, const PanelState& state) {
     drawCompPage(cr, shared, state);
   } else if (state.page == 4) {
     drawDrivePage(cr, shared, state);
+  } else if (state.page == 5) {
+    drawClipPage(cr, shared, state);
   } else {
     drawPlaceholderPage(cr, state.page);
   }
@@ -796,7 +831,7 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
       "EQ  -  4-band + HPF/LPF",
       "COMP  -  76 / 2A / VCA",
       "DRIVE  -  valve / console / bus / tape / transformer",
-      "CLIP  -  soft / hard / diode (next milestone)",
+      "CLIP  -  soft / hard / diode",
       "LIMIT  -  true-peak safety (next milestone)"};
   text(cr, kPageCaptions[std::clamp(page, 0, 6)], kPanelWidth * 0.5, 709, 15,
        1, 0.86, 0.82, 0.76);
@@ -1262,6 +1297,97 @@ void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
                 shared.get(P_DRIVE_DRIVE) * 100.0);
   text(cr, driveText, cx + cw - 20, cy + 94, 9.5, 2, skin.legendDim.r,
        skin.legendDim.g, skin.legendDim.b);
+}
+
+void Panel::drawClipPage(cairo_t* cr, const Shared& shared,
+                         const PanelState& state) const {
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+  const int shape = std::clamp(static_cast<int>(shared.get(P_CLIP_SHAPE) + 0.5),
+                               0, 2);
+  const int os = std::clamp(static_cast<int>(shared.get(P_CLIP_OVERSAMPLE) + 0.5),
+                            0, 2);
+  const float ceiling = clipCeilingDb(static_cast<float>(shared.get(P_CLIP_CEILING)));
+
+  roundRect(cr, 52, 206, 340, 38, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.20);
+  cairo_fill(cr);
+  text(cr, "OVERSAMPLE", 62, 231, 9, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+
+  // Transfer curve.
+  const double gx = 52, gy = 270, gw = 480, gh = 130;
+  roundRect(cr, gx, gy, gw, gh, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.20);
+  cairo_move_to(cr, gx + gw * 0.5, gy);
+  cairo_line_to(cr, gx + gw * 0.5, gy + gh);
+  cairo_move_to(cr, gx, gy + gh * 0.5);
+  cairo_line_to(cr, gx + gw, gy + gh * 0.5);
+  cairo_stroke(cr);
+  setRgb(cr, skin.legendDim, 0.14);
+  cairo_move_to(cr, gx, gy + gh);
+  cairo_line_to(cr, gx + gw, gy);
+  cairo_stroke(cr);
+
+  cairo_new_path(cr);
+  constexpr int kPoints = 240;
+  for (int i = 0; i <= kPoints; ++i) {
+    const float x = -2.0f + 4.0f * static_cast<float>(i) / kPoints;
+    const float y = clipShapeValue(shape, x);
+    const double px = gx + gw * (0.5 + 0.25 * x);
+    const double py = gy + gh * (0.5 - 0.42 * y);
+    if (i == 0) cairo_move_to(cr, px, py);
+    else cairo_line_to(cr, px, py);
+  }
+  cairo_set_line_width(cr, 2.0);
+  setRgb(cr, skin.btnOn, 0.95);
+  cairo_stroke(cr);
+
+  setRgb(cr, skin.legendDim, 0.35);
+  roundRect(cr, gx + 0.5, gy + 0.5, gw - 1.0, gh - 1.0, 4);
+  cairo_stroke(cr);
+  text(cr, "TRANSFER", gx + 24, gy - 8, 9, 0, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+  text(cr, "IN", gx + gw, gy + gh + 15, 9, 2, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+
+  // Card.
+  const double cx = 560, cy = 270, cw = 410, ch = 130;
+  roundRect(cr, cx, cy, cw, ch, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.25);
+  roundRect(cr, cx + 0.5, cy + 0.5, cw - 1.0, ch - 1.0, 4);
+  cairo_stroke(cr);
+  static const char* const kNames[3] = {"SOFT", "HARD", "DIODE"};
+  static const char* const kLines[3] = {
+      "rounded knee; keeps the hit together",
+      "flat top; dense and obvious",
+      "asymmetric; adds even harmonics"};
+  text(cr, kNames[shape], cx + 20, cy + 42, 26, 0, skin.btnOn.r, skin.btnOn.g,
+       skin.btnOn.b);
+  text(cr, kLines[shape], cx + 20, cy + 70, 9.5, 0, skin.legend.r,
+       skin.legend.g, skin.legend.b);
+
+  char info[96];
+  std::snprintf(info, sizeof(info),
+                "CEILING %.1f dB   -   OS %s   -   LATENCY GATE + 45",
+                ceiling, kOversampleLabels[os]);
+  text(cr, info, cx + 20, cy + 94, 9, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+
+  cairo_arc(cr, cx + cw - 30, cy + 36, 7, 0, 2 * kPi);
+  setRgb(cr, state.clipActive ? Rgb{1.0, 0.24, 0.16} : skin.legendDim,
+         state.clipActive ? 1.0 : 0.30);
+  cairo_fill(cr);
+  text(cr, "CLIP", cx + cw - 30, cy + 58, 8, 1,
+       state.clipActive ? 1.0 : skin.legendDim.r,
+       state.clipActive ? 0.55 : skin.legendDim.g,
+       state.clipActive ? 0.45 : skin.legendDim.b);
 }
 
 void Panel::drawScope(cairo_t* cr, const Shared& shared,
