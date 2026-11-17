@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-11-17
+
+- DRIVE page with five Patina models: Valve, Console, Bus, Tape and
+  Transformer.
+- Drive, Character, Tone, Mix and auto gain, plus a transfer-curve display.
+- Per-profile drive model and defaults.
+- Tests: all five drive models, mix bypass and auto-gain level recovery.
+
 ## 0.3.0 — 2026-11-17
 
 - COMP page with 76, 2A and VCA models reused from Comp Suite.

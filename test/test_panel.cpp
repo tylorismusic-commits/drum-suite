@@ -142,6 +142,18 @@ int main() {
     panel.pointerUp();
     check(shared.get(P_DRUM) == 0.0 && shared.get(P_COMP_MODEL) == 0.0,
           "Kick profile selects the 76 compressor");
+
+    // Drive page: five model tabs and auto gain.
+    panel.pointerDown(shared, state, 660, 87, false);
+    panel.pointerUp();
+    check(state.page == 4, "Drive page tab selects the Drive page");
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 420, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_DRIVE_MODEL) == 3.0, "Tape model tab selects Tape");
+    panel.pointerDown(shared, state, 778, 196, false);
+    panel.pointerUp();
+    check(shared.get(P_DRIVE_AUTOGAIN) == 0.0, "Auto Gain pill toggles off");
   }
 
   {

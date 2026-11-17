@@ -56,6 +56,7 @@ Controls base() {
   c.power = true;
   c.bypass = false;
   c.compOn = false;
+  c.driveOn = false;
   return c;
 }
 
@@ -417,6 +418,61 @@ int main() {
     Render lifted = run(comp, tone);
     check(rms(lifted.l, 2000, 12000) > rms(unity.l, 2000, 12000) * 1.5,
           "compressor makeup adds gain after compression");
+  }
+
+
+  {
+    // Drive: every Patina model changes the waveform and stays finite; mix 0
+    // is a true bypass; auto gain restores the level.
+    const int n = static_cast<int>(kSr * 0.5f);
+    std::vector<float> tone(n);
+    for (int i = 0; i < n; ++i)
+      tone[i] = 0.3f * std::sin(2.0f * 3.14159265f * 1000.0f * i / kSr);
+
+    Controls drive = base();
+    drive.gateOn = false;
+    drive.driveOn = true;
+    drive.driveDrive = 0.85f;
+    drive.driveCharacter = 0.5f;
+    drive.driveTone = 0.5f;
+    drive.driveMix = 1.0f;
+    drive.driveAutoGain = false;
+
+    Controls flat = base();
+    flat.gateOn = false;
+    Render straight = run(flat, tone);
+    for (int model = 0; model < 5; ++model) {
+      drive.driveModel = model;
+      Render r = run(drive, tone);
+      double err = 0.0;
+      for (size_t i = 2000; i < tone.size(); ++i)
+        err = std::max(err, static_cast<double>(std::fabs(r.l[i] - straight.l[i])));
+      std::printf("  drive model %d: max deviation %.4f\n", model, err);
+      check(finite(r.l) && finite(r.r), "drive output is finite");
+      check(err > 0.002, "drive model changes the waveform");
+    }
+
+    drive.driveModel = 0;
+    drive.driveMix = 0.0f;
+    Render dry = run(drive, tone);
+    float mixErr = 0.0f;
+    for (size_t i = 12000; i < tone.size(); ++i)
+      mixErr = std::max(mixErr, std::fabs(dry.l[i] - straight.l[i]));
+    check(mixErr < 1e-4f, "drive mix 0 is effectively a bypass");
+
+    drive.driveMix = 1.0f;
+    drive.driveAutoGain = false;
+    Render noride = run(drive, tone);
+    drive.driveAutoGain = true;
+    Render gained = run(drive, tone);
+    const double dryRms = rms(straight.l, 2000, 20000);
+    const double noRms = rms(noride.l, 2000, 20000);
+    const double autoRms = rms(gained.l, 2000, 20000);
+    std::printf("  drive level: dry %.1f, sat %.1f, auto %.1f dB\n",
+                db(dryRms), db(noRms), db(autoRms));
+    check(std::fabs(db(autoRms) - db(dryRms)) <
+              std::fabs(db(noRms) - db(dryRms)) + 0.5,
+          "drive auto gain restores the level");
   }
 
   std::printf("%d failure(s)\n", gFailures);

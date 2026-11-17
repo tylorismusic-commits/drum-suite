@@ -5,6 +5,7 @@
 
 #include "presets.hpp"
 #include "value_text.hpp"
+#include "dsp/drive/saturation.hpp"
 #include "dsp/wav.hpp"
 
 #include <cairo-ft.h>
@@ -425,6 +426,26 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     knob(P_COMP_MAKEUP, 310, 550, 24, "MAKEUP", {}, true);
     knob(P_COMP_MIX, 450, 550, 24, "MIX", {}, true);
     knob(P_COMP_SC_HPF, 590, 550, 24, "SC HPF", {}, true);
+  } else if (state.page == 4) {
+    // Drive: five Patina colours.
+    for (int i = 0; i < 5; ++i) {
+      Widget b{};
+      b.kind = Kind::Button;
+      b.param = P_DRIVE_MODEL;
+      b.value = i;
+      b.x = 52.0 + i * 106.0;
+      b.y = 182.0;
+      b.w = 96.0;
+      b.h = 28.0;
+      b.label = kDriveModelLabels[i];
+      widgets_.push_back(b);
+    }
+    pill(P_DRIVE_ON, 592, 182, 110, 28, "DRIVE ON");
+    pill(P_DRIVE_AUTOGAIN, 718, 182, 120, 28, "AUTO GAIN");
+    knob(P_DRIVE_DRIVE, 150, 465, 28, "DRIVE");
+    knob(P_DRIVE_CHARACTER, 300, 465, 28, "CHARACTER");
+    knob(P_DRIVE_TONE, 450, 465, 28, "TONE");
+    knob(P_DRIVE_MIX, 600, 465, 28, "MIX");
   }
 
   // Global.  Power is the bypass; the bottom corners are just trim.
@@ -643,6 +664,8 @@ void Panel::draw(cairo_t* cr, Shared& shared, const PanelState& state) {
     drawEqPage(cr, shared, state);
   } else if (state.page == 3) {
     drawCompPage(cr, shared, state);
+  } else if (state.page == 4) {
+    drawDrivePage(cr, shared, state);
   } else {
     drawPlaceholderPage(cr, state.page);
   }
@@ -772,7 +795,7 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
       "SAMPLE  -  loader, pitch and gate trigger",
       "EQ  -  4-band + HPF/LPF",
       "COMP  -  76 / 2A / VCA",
-      "DRIVE  -  valve / console / tape (next milestone)",
+      "DRIVE  -  valve / console / bus / tape / transformer",
       "CLIP  -  soft / hard / diode (next milestone)",
       "LIMIT  -  true-peak safety (next milestone)"};
   text(cr, kPageCaptions[std::clamp(page, 0, 6)], kPanelWidth * 0.5, 709, 15,
@@ -1152,6 +1175,93 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
     text(cr, ratio, cx + 20, cy + 94, 9.5, 0, skin.legendDim.r,
          skin.legendDim.g, skin.legendDim.b);
   }
+}
+
+void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
+                          const PanelState& state) const {
+  (void)state;
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+  const int model = std::clamp(static_cast<int>(shared.get(P_DRIVE_MODEL) + 0.5),
+                               0, 4);
+  const float drive = static_cast<float>(shared.get(P_DRIVE_DRIVE));
+  const float character = static_cast<float>(shared.get(P_DRIVE_CHARACTER));
+
+  // Transfer curve.
+  const double gx = 52, gy = 240, gw = 480, gh = 130;
+  roundRect(cr, gx, gy, gw, gh, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.20);
+  cairo_move_to(cr, gx + gw * 0.5, gy);
+  cairo_line_to(cr, gx + gw * 0.5, gy + gh);
+  cairo_move_to(cr, gx, gy + gh * 0.5);
+  cairo_line_to(cr, gx + gw, gy + gh * 0.5);
+  cairo_stroke(cr);
+  setRgb(cr, skin.legendDim, 0.14);
+  cairo_move_to(cr, gx, gy + gh);
+  cairo_line_to(cr, gx + gw, gy);
+  cairo_stroke(cr);
+
+  const float endShape =
+      std::max(std::fabs(patina::modelShape(model, drive, character, 1.0f)),
+               std::fabs(patina::modelShape(model, drive, character, -1.0f)));
+  const float shapeScale = endShape > 1e-4f ? 1.0f / endShape : 1.0f;
+  cairo_new_path(cr);
+  constexpr int kPoints = 240;
+  for (int i = 0; i <= kPoints; ++i) {
+    const float x = -1.0f + 2.0f * static_cast<float>(i) / kPoints;
+    const float y = patina::modelShape(model, drive, character, x) * shapeScale;
+    const double px = gx + gw * (0.5 + 0.5 * x);
+    const double py = gy + gh * (0.5 - 0.42 * y);
+    if (i == 0) cairo_move_to(cr, px, py);
+    else cairo_line_to(cr, px, py);
+  }
+  cairo_set_line_width(cr, 2.0);
+  setRgb(cr, skin.btnOn, 0.95);
+  cairo_stroke(cr);
+
+  setRgb(cr, skin.legendDim, 0.35);
+  roundRect(cr, gx + 0.5, gy + 0.5, gw - 1.0, gh - 1.0, 4);
+  cairo_stroke(cr);
+  text(cr, "TRANSFER", gx + 8, gy - 8, 9, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+  text(cr, "IN", gx + gw, gy + gh + 15, 9, 2, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+  text(cr, "OUT", gx, gy - 8, 9, 2, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+
+  // Model card.
+  const double cx = 560, cy = 240, cw = 410, ch = 130;
+  roundRect(cr, cx, cy, cw, ch, 4);
+  setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
+  cairo_fill(cr);
+  cairo_set_line_width(cr, 1.0);
+  setRgb(cr, skin.legendDim, 0.25);
+  roundRect(cr, cx + 0.5, cy + 0.5, cw - 1.0, ch - 1.0, 4);
+  cairo_stroke(cr);
+  static const char* const kNames[5] = {"VALVE", "CONSOLE", "BUS", "TAPE",
+                                        "TRANSFORMER"};
+  static const char* const kLines[5] = {
+      "even harmonics, thick low mid",
+      "op-amp edge for snare and tom cut",
+      "dense, controlled harmonic glue",
+      "soft top, round low end",
+      "iron weight and low-mid push"};
+  text(cr, kNames[model], cx + 20, cy + 42, 26, 0, skin.btnOn.r, skin.btnOn.g,
+       skin.btnOn.b);
+  text(cr, kLines[model], cx + 20, cy + 70, 9.5, 0, skin.legend.r,
+       skin.legend.g, skin.legend.b);
+  text(cr, shared.get(P_DRIVE_AUTOGAIN) > 0.5 ? "AUTO GAIN ON"
+                                               : "AUTO GAIN OFF",
+       cx + 20, cy + 94, 9.5, 0, skin.legendDim.r, skin.legendDim.g,
+       skin.legendDim.b);
+  char driveText[32];
+  std::snprintf(driveText, sizeof(driveText), "DRIVE %.0f%%",
+                shared.get(P_DRIVE_DRIVE) * 100.0);
+  text(cr, driveText, cx + cw - 20, cy + 94, 9.5, 2, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
 }
 
 void Panel::drawScope(cairo_t* cr, const Shared& shared,

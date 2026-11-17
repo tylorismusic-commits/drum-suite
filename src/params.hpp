@@ -48,6 +48,13 @@ enum ParamId : uint32_t {
   P_COMP_MAKEUP,
   P_COMP_MIX,
   P_COMP_SC_HPF,
+  P_DRIVE_ON,
+  P_DRIVE_MODEL,
+  P_DRIVE_DRIVE,
+  P_DRIVE_CHARACTER,
+  P_DRIVE_TONE,
+  P_DRIVE_MIX,
+  P_DRIVE_AUTOGAIN,
   P_COUNT
 };
 
@@ -138,6 +145,18 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
     {"comp_mix", "Mix", "Comp", 0.0, 1.0, 1.0, false, false, false, "%", {}},
     {"comp_sc_hpf", "SC HPF", "Comp", 0.0, 1.0, 0.05, false, false, false, "Hz",
      {}},
+    {"drive_on", "Drive On", "Drive", 0.0, 1.0, 1.0, true, false, true, nullptr,
+     {}},
+    {"drive_model", "Model", "Drive", 0.0, 4.0, 0.0, true, false, false, nullptr,
+     labels(kDriveModelLabels)},
+    {"drive_drive", "Drive", "Drive", 0.0, 1.0, 0.45, false, false, false, "%",
+     {}},
+    {"drive_character", "Character", "Drive", 0.0, 1.0, 0.55, false, false,
+     false, "%", {}},
+    {"drive_tone", "Tone", "Drive", 0.0, 1.0, 0.40, false, false, false, "%", {}},
+    {"drive_mix", "Mix", "Drive", 0.0, 1.0, 0.35, false, false, false, "%", {}},
+    {"drive_auto_gain", "Auto Gain", "Drive", 0.0, 1.0, 1.0, true, false, true,
+     nullptr, {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -254,6 +273,13 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_COMP_MAKEUP, c.makeup);
   s.set(P_COMP_MIX, c.mix);
   s.set(P_COMP_SC_HPF, c.scHpf);
+  const DriveDefaults& d = kDriveDefaults[drum];
+  s.set(P_DRIVE_MODEL, d.model);
+  s.set(P_DRIVE_DRIVE, d.drive);
+  s.set(P_DRIVE_CHARACTER, d.character);
+  s.set(P_DRIVE_TONE, d.tone);
+  s.set(P_DRIVE_MIX, d.mix);
+  s.set(P_DRIVE_AUTOGAIN, d.autoGain ? 1.0 : 0.0);
 }
 
 inline Controls controlsFrom(Shared& s) noexcept {
@@ -295,6 +321,13 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.compMakeup = static_cast<float>(s.get(P_COMP_MAKEUP));
   c.compMix = static_cast<float>(s.get(P_COMP_MIX));
   c.compScHpf = static_cast<float>(s.get(P_COMP_SC_HPF));
+  c.driveOn = s.get(P_DRIVE_ON) > 0.5;
+  c.driveModel = static_cast<int>(s.get(P_DRIVE_MODEL) + 0.5);
+  c.driveDrive = static_cast<float>(s.get(P_DRIVE_DRIVE));
+  c.driveCharacter = static_cast<float>(s.get(P_DRIVE_CHARACTER));
+  c.driveTone = static_cast<float>(s.get(P_DRIVE_TONE));
+  c.driveMix = static_cast<float>(s.get(P_DRIVE_MIX));
+  c.driveAutoGain = s.get(P_DRIVE_AUTOGAIN) > 0.5;
   return c;
 }
 

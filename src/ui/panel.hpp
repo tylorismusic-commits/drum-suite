@@ -122,6 +122,8 @@ private:
                   const PanelState& state) const;
   void drawCompPage(cairo_t* cr, const Shared& shared,
                     const PanelState& state) const;
+  void drawDrivePage(cairo_t* cr, const Shared& shared,
+                     const PanelState& state) const;
   void updateWaveCache(const std::shared_ptr<const SampleBuffer>& sample,
                        int cols) const;
   bool loadSample(Shared& shared, PanelState& state,

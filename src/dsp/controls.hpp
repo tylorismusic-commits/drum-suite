@@ -73,6 +73,8 @@ inline constexpr Profile kProfiles[8] = {
 inline constexpr int kDrumCount = 8;
 
 inline constexpr const char* kCompModelLabels[] = {"76", "2A", "VCA"};
+inline constexpr const char* kDriveModelLabels[] = {"VALVE", "CONSOLE", "BUS",
+                                                    "TAPE", "TRANSFORMER"};
 
 struct CompDefaults {
   int model;
@@ -83,6 +85,26 @@ struct CompDefaults {
   float makeup;
   float mix;
   float scHpf;
+};
+
+struct DriveDefaults {
+  int model;
+  float drive;
+  float character;
+  float tone;
+  float mix;
+  bool autoGain;
+};
+
+inline constexpr DriveDefaults kDriveDefaults[8] = {
+    {0, 0.45f, 0.55f, 0.40f, 0.35f, true},  // Kick
+    {1, 0.50f, 0.60f, 0.55f, 0.45f, true},  // Snare
+    {0, 0.40f, 0.50f, 0.45f, 0.35f, true},  // Tom
+    {4, 0.30f, 0.40f, 0.60f, 0.25f, true},  // Hat
+    {1, 0.30f, 0.45f, 0.60f, 0.20f, true},  // Ride
+    {3, 0.50f, 0.55f, 0.50f, 0.35f, true},  // Room
+    {3, 0.40f, 0.50f, 0.55f, 0.30f, true},  // OH
+    {2, 0.45f, 0.55f, 0.50f, 0.30f, true},  // Bus
 };
 
 inline constexpr CompDefaults kCompDefaults[8] = {
@@ -152,6 +174,15 @@ struct Controls {
   float compMakeup = 0.5f;  // 0.5 = unity
   float compMix = 1.0f;
   float compScHpf = 0.3f;
+
+  // Drive.
+  bool driveOn = true;
+  int driveModel = 0;  // 0 Valve, 1 Console, 2 Bus, 3 Tape, 4 Transformer
+  float driveDrive = 0.45f;
+  float driveCharacter = 0.55f;
+  float driveTone = 0.45f;
+  float driveMix = 0.35f;
+  bool driveAutoGain = true;
 
   // Sample loader.
   bool sampleOn = false;

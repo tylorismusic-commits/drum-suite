@@ -1,9 +1,9 @@
 # Drum Suite
 
-**Version 0.3.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.4.0 — Linux x86_64** · GPL-3.0-or-later
 
 A drum channel strip in the Suite visual language. **Bleed Out**, **Sample**,
-**EQ** and **Comp** are working; Drive, Clip and Limit follow in the next
+**EQ**, **Comp** and **Drive** are working; Clip and Limit follow in the next
 milestones.
 
 ![Drum Suite — Bleed Out](docs/kick.png)
@@ -22,7 +22,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 | **SAMPLE** | Working: 4-voice loader, gate/transient trigger, pitch, start, reverse, choke, fade |
 | **EQ** | Working: low shelf, two peaks, high shelf, HPF/LPF + curve |
 | **COMP** | Working: 76 / 2A / VCA models, GR history |
-| **DRIVE** | Scaffolded; Patina colours next |
+| **DRIVE** | Working: Valve, Console, Bus, Tape, Transformer + auto gain |
 | **CLIP** | Scaffolded; soft / hard / diode next |
 | **LIMIT** | Scaffolded; true-peak safety next |
 
@@ -99,6 +99,22 @@ drum tab therefore changes the compressor as well as the gate.
 
 ![Drum Suite — Compressor](docs/comp.png)
 
+## Drive
+
+Five Patina saturation colours, one band, with a live transfer curve:
+
+- **Valve** — even harmonics and a thick low mid.
+- **Console** — op-amp edge for snare and tom cut.
+- **Bus** — dense, controlled harmonic glue.
+- **Tape** — soft top and a round low end.
+- **Transformer** — iron weight and low-mid push.
+
+Drive, Character, Tone and Mix shape the stage; **Auto Gain** tracks the input
+and output level so parallel drive does not jump. The transfer display uses the
+same shaper curve as the audio path.
+
+![Drum Suite — Drive](docs/drive.png)
+
 ## Build
 
 Requires CMake 3.16+, a C++20 compiler, Cairo, FreeType, X11 and LV2.
@@ -121,7 +137,7 @@ cmake --install build
 
 ## Status
 
-0.3.0 adds the compressor to the Sample/EQ build:
+0.4.0 adds the drive stage to the Sample/EQ/Comp build:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
@@ -130,11 +146,13 @@ cmake --install build
 - EQ page: four bands + HPF/LPF with a live curve.
 - COMP page: 76, 2A and VCA models with GR history, makeup, mix and sidechain
   HPF; per-profile compressor defaults.
-- Placeholder pages for Drive, Clip and Limit.
-- Tests: DSP, sample player, EQ response, compressor models and bypass, panel
-  loading, layout, geometry and TTL.
+- DRIVE page: Valve, Console, Bus, Tape and Transformer models, transfer curve
+  and auto gain; per-profile drive defaults.
+- Placeholder pages for Clip and Limit.
+- Tests: DSP, sample player, EQ response, compressor models, drive models and
+  auto gain, panel loading, layout, geometry and TTL.
 
-Next: Drive, then Clip and Limit.
+Next: Clip, then Limit.
 
 ## Licence
 

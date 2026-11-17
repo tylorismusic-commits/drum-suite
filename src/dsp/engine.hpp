@@ -14,6 +14,7 @@
 #include "bleedout.hpp"
 #include "compressor.hpp"
 #include "controls.hpp"
+#include "drive.hpp"
 #include "sample_player.hpp"
 
 namespace drum {
@@ -25,6 +26,7 @@ public:
     gate_.prepare(sr_);
     samplePlayer_.prepare(sr_);
     comp_.prepare(sr_);
+    drive_.prepare(sr_);
     maxBlock_ = std::max(1024, maxBlock > 0 ? maxBlock : 8192);
     triggers_.assign(static_cast<size_t>(maxBlock_), 0);
     applyEq(controls_);
@@ -38,6 +40,7 @@ public:
     samplePlayer_.setControls(c);
     applyEq(c);
     comp_.setControls(c);
+    drive_.setControls(c);
   }
 
   void setSample(std::shared_ptr<const SampleBuffer> sample) noexcept {
@@ -99,6 +102,7 @@ public:
         right[i] = r;
       }
       comp_.process(left + offset, right + offset, n, meters);
+      drive_.process(left + offset, right + offset, n);
       for (int i = offset; i < offset + n; ++i) {
         peakL = std::max(peakL, std::fabs(left[i]));
         peakR = std::max(peakR, std::fabs(right[i]));
@@ -114,6 +118,7 @@ public:
     gate_.reset();
     samplePlayer_.reset();
     comp_.reset();
+    drive_.reset();
     eqLowL_.reset();
     eqLowR_.reset();
     eqLowMidL_.reset();
@@ -171,6 +176,7 @@ private:
   BleedOut gate_;
   SamplePlayer samplePlayer_;
   Compressor comp_;
+  Drive drive_;
   std::shared_ptr<const SampleBuffer> loadedSample_;
   std::vector<uint8_t> triggers_;
   bool eqFlat_ = true;
