@@ -18,6 +18,7 @@
 #include "drive.hpp"
 #include "limiter.hpp"
 #include "sample_player.hpp"
+#include "transient.hpp"
 
 namespace drum {
 
@@ -27,6 +28,7 @@ public:
     sr_ = sampleRate > 0.0f ? sampleRate : 48000.0f;
     gate_.prepare(sr_);
     samplePlayer_.prepare(sr_);
+    transient_.prepare(sr_);
     comp_.prepare(sr_);
     drive_.prepare(sr_);
     clip_.prepare(sr_);
@@ -43,6 +45,7 @@ public:
     gate_.setControls(c);
     samplePlayer_.setControls(c);
     applyEq(c);
+    transient_.setControls(c);
     comp_.setControls(c);
     drive_.setControls(c);
     clip_.setControls(c);
@@ -67,6 +70,7 @@ public:
         meters.sampleVoices = 0;
         meters.sampleTriggered = false;
         meters.compGrDb = 0.0f;
+        meters.transientDb = 0.0f;
         meters.clipActive = false;
         meters.limitGrDb = 0.0f;
         clip_.processBypass(left + offset, right + offset, n);
@@ -111,6 +115,7 @@ public:
         left[i] = l;
         right[i] = r;
       }
+      transient_.process(left + offset, right + offset, n, meters);
       comp_.process(left + offset, right + offset, n, meters);
       drive_.process(left + offset, right + offset, n);
       clip_.process(left + offset, right + offset, n, meters);
@@ -129,6 +134,7 @@ public:
   void reset() noexcept {
     gate_.reset();
     samplePlayer_.reset();
+    transient_.reset();
     comp_.reset();
     drive_.reset();
     clip_.reset();
@@ -192,6 +198,7 @@ private:
   Controls controls_{};
   BleedOut gate_;
   SamplePlayer samplePlayer_;
+  TransientShaper transient_;
   Compressor comp_;
   Drive drive_;
   Clip clip_;

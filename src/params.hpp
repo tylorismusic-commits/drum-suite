@@ -71,6 +71,10 @@ enum ParamId : uint32_t {
   P_LIMIT_MIX,
   P_SAMPLE_SENSITIVITY,
   P_SAMPLE_OFFSET,
+  P_TRANSIENT_ON,
+  P_TRANSIENT_ATTACK,
+  P_TRANSIENT_SUSTAIN,
+  P_TRANSIENT_SENS,
   P_COUNT
 };
 
@@ -226,6 +230,14 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      false, "%", {}},
     {"sample_offset", "Offset", "Sample", 0.0, 10.0, 0.0, false, false, false,
      "ms", {}},
+    {"transient_on", "Transient", "Comp", 0.0, 1.0, 1.0, true, false, true,
+     nullptr, {}},
+    {"transient_attack", "Attack", "Comp", -100.0, 100.0, 25.0, false, false,
+     false, "%", {}},
+    {"transient_sustain", "Sustain", "Comp", -100.0, 100.0, 10.0, false, false,
+     false, "%", {}},
+    {"transient_sens", "Sens", "Comp", 0.0, 100.0, 50.0, false, false, false,
+     "%", {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -233,6 +245,7 @@ static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
 
 inline double recommendedTarget(uint32_t id, int drum) noexcept {
   drum = std::clamp(drum, 0, kDrumCount - 1);
+  const TransientDefaults& tr = kTransientDefaults[drum];
   const CompDefaults& c = kCompDefaults[drum];
   const DriveDefaults& d = kDriveDefaults[drum];
   const ClipDefaults& cl = kClipDefaults[drum];
@@ -263,6 +276,14 @@ inline double recommendedTarget(uint32_t id, int drum) noexcept {
       return sm.sensitivity;
     case P_SAMPLE_OFFSET:
       return sm.offsetMs;
+    case P_TRANSIENT_ON:
+      return tr.on ? 1.0 : 0.0;
+    case P_TRANSIENT_ATTACK:
+      return tr.attack;
+    case P_TRANSIENT_SUSTAIN:
+      return tr.sustain;
+    case P_TRANSIENT_SENS:
+      return tr.sensitivity;
     case P_EQ_LOW:
       return eq.low;
     case P_EQ_LOW_MID:
@@ -430,6 +451,7 @@ public:
     gate.store(1.0f);
     ghostActive.store(false);
     compGrDb.store(0.0f);
+    transientDb.store(0.0f);
     clipActive.store(false);
     sampleVoices.store(0);
     sampleActive.store(false);
@@ -504,6 +526,7 @@ public:
   std::atomic<float> grDb, detectorDb, gate;
   std::atomic<bool> ghostActive;
   std::atomic<float> compGrDb;
+  std::atomic<float> transientDb;
   std::atomic<bool> clipActive;
   std::atomic<int> sampleVoices;
   std::atomic<bool> sampleActive;
@@ -532,6 +555,11 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_THRESHOLD, kProfiles[drum].thresholdDb);
   s.set(P_DEBLEED, kProfiles[drum].deBleed);
   s.set(P_GHOST, 50.0);
+  const TransientDefaults& tr = kTransientDefaults[drum];
+  s.set(P_TRANSIENT_ON, tr.on ? 1.0 : 0.0);
+  s.set(P_TRANSIENT_ATTACK, tr.attack);
+  s.set(P_TRANSIENT_SUSTAIN, tr.sustain);
+  s.set(P_TRANSIENT_SENS, tr.sensitivity);
   const CompDefaults& c = kCompDefaults[drum];
   s.set(P_COMP_MODEL, c.model);
   s.set(P_COMP_THRESHOLD, c.thresholdDb);
@@ -608,6 +636,10 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.sampleSensitivity = static_cast<float>(s.get(P_SAMPLE_SENSITIVITY));
   c.sampleOffsetMs = static_cast<float>(s.get(P_SAMPLE_OFFSET));
   c.sampleMidiTrigger = static_cast<int>(s.takeSampleTrigger());
+  c.transientOn = s.get(P_TRANSIENT_ON) > 0.5;
+  c.transientAttack = static_cast<float>(s.get(P_TRANSIENT_ATTACK));
+  c.transientSustain = static_cast<float>(s.get(P_TRANSIENT_SUSTAIN));
+  c.transientSensitivity = static_cast<float>(s.get(P_TRANSIENT_SENS));
   c.eqLow = static_cast<float>(s.get(P_EQ_LOW));
   c.eqLowMid = static_cast<float>(s.get(P_EQ_LOW_MID));
   c.eqHighMid = static_cast<float>(s.get(P_EQ_HIGH_MID));

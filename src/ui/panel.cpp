@@ -289,6 +289,7 @@ std::string guideSummary(int drum, int page) {
   const EqDefaults& eq = kEqDefaults[drum];
   const LimitDefaults& lim = kLimitDefaults[drum];
   const SampleDefaults& sm = kSampleDefaults[drum];
+  const TransientDefaults& tr = kTransientDefaults[drum];
   char buf[320];
   switch (page) {
     case 0:
@@ -325,12 +326,13 @@ std::string guideSummary(int drum, int page) {
       }
       std::snprintf(buf, sizeof(buf),
                     "RECOMMENDED FOR %s   %s   %s %.0f dB   %.0f:1   "
-                    "TARGET 3-6 dB GR   %s   MIX %.0f%%",
+                    "TARGET 3-6 dB GR   %s   MIX %.0f%%   "
+                    "TRANS %+.0f/%+.0f SENS %.0f",
                     kDrumLabels[drum], kCompModelLabels[std::clamp(c.model, 0, 2)],
-                    c.model == 0 ? "INPUT"
+                    c.model == 0 ? "COMP IN"
                                  : (c.model == 1 ? "PEAK RED" : "THRESH"),
                     c.thresholdDb, compRatioValue(c.ratio), ar,
-                    c.mix * 100.0f);
+                    c.mix * 100.0f, tr.attack, tr.sustain, tr.sensitivity);
       break;
     }
     case 4:
@@ -501,19 +503,23 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
       widgets_.push_back(b);
     }
     pill(P_COMP_ON, 444, 182, 120, 28, "COMP ON");
+    pill(P_TRANSIENT_ON, 584, 182, 130, 28, "TRANSIENT");
     const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
     const char* thresholdLabel =
-        model == 0 ? "INPUT" : (model == 1 ? "PEAK RED" : "THRESHOLD");
-    knob(P_COMP_THRESHOLD, 170, 445, 26, thresholdLabel);
-    knob(P_COMP_RATIO, 310, 445, 26, model == 1 ? "LIMIT" : "RATIO", {},
-         false, 9);
+        model == 0 ? "COMP IN" : (model == 1 ? "PEAK RED" : "THRESHOLD");
+    knob(P_TRANSIENT_ATTACK, 200, 407, 22, "ATTACK", {}, true);
+    knob(P_TRANSIENT_SUSTAIN, 350, 407, 22, "SUSTAIN", {}, true);
+    knob(P_TRANSIENT_SENS, 500, 407, 22, "SENS", {}, true);
+    knob(P_COMP_THRESHOLD, 200, 520, 22, thresholdLabel, {}, true);
+    knob(P_COMP_RATIO, 304, 520, 22, model == 1 ? "LIMIT" : "RATIO", {}, true,
+         9);
     if (model != 1) {
-      knob(P_COMP_ATTACK, 450, 445, 26, "ATTACK");
-      knob(P_COMP_RELEASE, 590, 445, 26, "RELEASE");
+      knob(P_COMP_ATTACK, 408, 520, 22, "ATTACK", {}, true);
+      knob(P_COMP_RELEASE, 512, 520, 22, "RELEASE", {}, true);
     }
-    knob(P_COMP_MAKEUP, 310, 550, 24, "MAKEUP", {}, true);
-    knob(P_COMP_MIX, 450, 550, 24, "MIX", {}, true);
-    knob(P_COMP_SC_HPF, 590, 550, 24, "SC HPF", {}, true);
+    knob(P_COMP_MAKEUP, 616, 520, 22, "MAKEUP", {}, true);
+    knob(P_COMP_MIX, 720, 520, 22, "MIX", {}, true);
+    knob(P_COMP_SC_HPF, 824, 520, 22, "SC HPF", {}, true);
   } else if (state.page == 4) {
     // Drive: five Patina colours.
     for (int i = 0; i < 5; ++i) {
@@ -972,7 +978,7 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
       "BLEED OUT  -  multiband de-bleed gate",
       "SAMPLE  -  loader, pitch and gate trigger",
       "EQ  -  4-band + HPF/LPF",
-      "COMP  -  76 / 2A / VCA",
+      "COMP  -  76 / 2A / VCA + transient",
       "DRIVE  -  valve / console / bus / tape / transformer",
       "CLIP  -  soft / hard / diode",
       "LIMIT  -  true-peak safety"};
@@ -1309,7 +1315,7 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
                                0, 2);
 
   // Gain-reduction history.
-  const double gx = 100, gy = 240, gw = 432, gh = 130;
+  const double gx = 100, gy = 240, gw = 432, gh = 100;
   roundRect(cr, gx, gy, gw, gh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
   cairo_fill(cr);
@@ -1351,7 +1357,7 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
        skin.btnOn.b);
 
   // Model card.
-  const double cx = 560, cy = 240, cw = 384, ch = 130;
+  const double cx = 560, cy = 240, cw = 384, ch = 100;
   roundRect(cr, cx, cy, cw, ch, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
   cairo_fill(cr);
@@ -1364,12 +1370,12 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
       "FET PEAK LIMITER  -  fast, aggressive drum control",
       "OPTICAL LEVELER  -  program-dependent release",
       "BUS VCA  -  clean, stereo-linked glue"};
-  text(cr, kNames[model], cx + 20, cy + 42, 30, 0, skin.btnOn.r, skin.btnOn.g,
+  text(cr, kNames[model], cx + 20, cy + 34, 26, 0, skin.btnOn.r, skin.btnOn.g,
        skin.btnOn.b);
-  text(cr, kLines[model], cx + 20, cy + 70, 9.5, 0, skin.legend.r,
+  text(cr, kLines[model], cx + 20, cy + 60, 9.0, 0, skin.legend.r,
        skin.legend.g, skin.legend.b);
   if (model == 1) {
-    text(cr, "ATTACK AND RELEASE FOLLOW THE PROGRAM", cx + 20, cy + 92, 8.5,
+    text(cr, "ATTACK AND RELEASE FOLLOW THE PROGRAM", cx + 20, cy + 82, 8.5,
          0, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
   } else {
     char ratio[32];
@@ -1379,9 +1385,20 @@ void Panel::drawCompPage(cairo_t* cr, const Shared& shared,
     else
       std::snprintf(ratio, sizeof(ratio), "%.1f:1",
                     compRatioValue(static_cast<float>(step)));
-    text(cr, ratio, cx + 20, cy + 94, 9.5, 0, skin.legendDim.r,
+    text(cr, ratio, cx + 20, cy + 82, 9.0, 0, skin.legendDim.r,
          skin.legendDim.g, skin.legendDim.b);
   }
+
+  text(cr, "TRANSIENT SHAPER", gx, 355, 10, 0, skin.legend.r, skin.legend.g,
+       skin.legend.b);
+  text(cr, "FAST ENVELOPE VS BODY", gx, 370, 8.5, 0, skin.legendDim.r,
+       skin.legendDim.g, skin.legendDim.b);
+  const bool transOn = shared.get(P_TRANSIENT_ON) > 0.5;
+  text(cr, transOn ? "ACTIVE BEFORE THE COMPRESSOR"
+                   : "BYPASSED - CLICK TRANSIENT TO ENABLE",
+       gx + 432, 355, 8.5, 2, transOn ? skin.btnOn.r : skin.legendDim.r,
+       transOn ? skin.btnOn.g : skin.legendDim.g,
+       transOn ? skin.btnOn.b : skin.legendDim.b);
 }
 
 void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
@@ -1395,7 +1412,7 @@ void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
   const float character = static_cast<float>(shared.get(P_DRIVE_CHARACTER));
 
   // Transfer curve.
-  const double gx = 100, gy = 240, gw = 432, gh = 130;
+  const double gx = 100, gy = 240, gw = 432, gh = 100;
   roundRect(cr, gx, gy, gw, gh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
   cairo_fill(cr);
@@ -1438,7 +1455,7 @@ void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
        skin.legendDim.g, skin.legendDim.b);
 
   // Model card.
-  const double cx = 560, cy = 240, cw = 384, ch = 130;
+  const double cx = 560, cy = 240, cw = 384, ch = 100;
   roundRect(cr, cx, cy, cw, ch, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
   cairo_fill(cr);
@@ -1566,7 +1583,7 @@ void Panel::drawLimitPage(cairo_t* cr, const Shared& shared,
   const Skin skin = skinFor(drum);
 
   // Gain-reduction history.
-  const double gx = 100, gy = 240, gw = 432, gh = 130;
+  const double gx = 100, gy = 240, gw = 432, gh = 100;
   roundRect(cr, gx, gy, gw, gh, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.40);
   cairo_fill(cr);
@@ -1607,7 +1624,7 @@ void Panel::drawLimitPage(cairo_t* cr, const Shared& shared,
        skin.btnOn.b);
 
   // Safety card.
-  const double cx = 560, cy = 240, cw = 384, ch = 130;
+  const double cx = 560, cy = 240, cw = 384, ch = 100;
   roundRect(cr, cx, cy, cw, ch, 4);
   setRgb(cr, {0.0, 0.0, 0.0}, 0.22);
   cairo_fill(cr);

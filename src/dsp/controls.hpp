@@ -142,6 +142,24 @@ inline constexpr CompDefaults kCompDefaults[8] = {
 };
 
 
+struct TransientDefaults {
+  bool on;
+  float attack;
+  float sustain;
+  float sensitivity;
+};
+
+inline constexpr TransientDefaults kTransientDefaults[8] = {
+    {true, 25.0f, 10.0f, 50.0f},   // Kick
+    {true, 35.0f, -10.0f, 55.0f},  // Snare
+    {true, 25.0f, 5.0f, 50.0f},    // Tom
+    {false, 15.0f, -10.0f, 50.0f}, // Hat
+    {false, 10.0f, -5.0f, 50.0f},  // Ride
+    {true, 20.0f, 10.0f, 50.0f},   // Room
+    {true, 15.0f, 5.0f, 50.0f},    // OH
+    {true, 15.0f, 5.0f, 50.0f},    // Bus
+};
+
 struct EqDefaults {
   float low;
   float lowMid;
@@ -244,6 +262,12 @@ struct Controls {
   int ghostCc = 74;
   int ghostTrigger = 0;
 
+  // Transient shaper.
+  bool transientOn = true;
+  float transientAttack = 25.0f;   // -100..100
+  float transientSustain = 10.0f;  // -100..100
+  float transientSensitivity = 50.0f;
+
   // EQ.
   float eqLow = 0.60f;
   float eqLowMid = 0.45f;
@@ -320,6 +344,7 @@ struct Meters {
   float compGrDb = 0.0f;
   bool clipActive = false;
   float limitGrDb = 0.0f;
+  float transientDb = 0.0f;
 };
 
 } // namespace drum

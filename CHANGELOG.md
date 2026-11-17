@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 — 2026-11-17
+
+- Added a stereo-linked transient shaper before the compressor on the COMP
+  page: bipolar Attack and Sustain, sensitivity and bypass.
+- Per-drum transient defaults are included in the RECOMMENDED guide.
+- New transient attack/sustain test using a decaying drum hit.
+- Regression-tested every Suite plugin's ctest target; all pass after
+  regenerating the Drum Suite LV2 metadata.
+- Updated Drum Suite guides and screenshots.
+
 ## 0.8.0 — 2026-11-17
 
 - Added the RECOMMENDED button and per-page recommended-value bar. Values

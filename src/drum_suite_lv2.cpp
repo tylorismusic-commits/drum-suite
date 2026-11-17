@@ -247,6 +247,7 @@ void run(LV2_Handle handle, uint32_t frames) {
   p->shared.scopeIn[head].store(p->meters.inPeakDb, std::memory_order_relaxed);
   p->shared.scopeGate[head].store(p->meters.gate, std::memory_order_relaxed);
   p->shared.compGrDb.store(p->meters.compGrDb, std::memory_order_relaxed);
+  p->shared.transientDb.store(p->meters.transientDb, std::memory_order_relaxed);
   {
     const int ch = p->shared.compHistoryHead.load(std::memory_order_relaxed);
     p->shared.compHistory[ch & (drum::Shared::kScopeSize - 1)].store(

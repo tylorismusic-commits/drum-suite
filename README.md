@@ -1,6 +1,6 @@
 # Drum Suite
 
-**Version 0.8.0 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0 — Linux x86_64** · GPL-3.0-or-later
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -20,7 +20,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 | **BLEED OUT** | Working: Threshold, DeBleed, Ghost + scope |
 | **SAMPLE** | Working: 4-voice loader, gate/transient trigger, pitch, start, reverse, choke, fade |
 | **EQ** | Working: low shelf, two peaks, high shelf, HPF/LPF + curve |
-| **COMP** | Working: 76 / 2A / VCA models, GR history |
+| **COMP** | Working: transient shaper + 76 / 2A / VCA models, GR history |
 | **DRIVE** | Working: Valve, Console, Bus, Tape, Transformer + auto gain |
 | **CLIP** | Working: soft / hard / diode, 1x/2x/4x, ceiling and clip LED |
 | **LIMIT** | Working: true-peak safety limiter with lookahead and GR history |
@@ -84,9 +84,21 @@ Four bands plus filters, all after the gate and sample layer:
 
 ![Drum Suite — EQ](docs/eq.png)
 
-## Compressor
+## Compressor and transient shaper
 
-Three drum-relevant models from Comp Suite, reusing the same DSP:
+The COMP page starts with a stereo-linked transient shaper before the
+compressor:
+
+- **Attack** (−100…+100) boosts or softens the leading edge.
+- **Sustain** (−100…+100) boosts or reduces the body after the hit.
+- **Sens** adjusts the fast/slow envelope detector.
+- The transient stage can be bypassed with the **TRANSIENT** switch.
+
+It uses a fast envelope (0.2 ms attack, 40 ms release) and a slow body
+envelope (15 ms attack, 180 ms release). Attack and Sustain are bipolar, so
+the same knob tightens or thickens the drum.
+
+Three drum-relevant compressor models follow, reusing Comp Suite's DSP:
 
 - **76** — blue-stripe FET peak limiter; fast and aggressive on kick, snare
   and toms.
@@ -94,6 +106,9 @@ Three drum-relevant models from Comp Suite, reusing the same DSP:
   Ratio knob becomes the **Limit** switch above 4:1.
 - **VCA** — clean, stereo-linked bus compressor for room, overheads and the
   drum bus.
+
+The drum guide sets sensible attack/sustain values per profile; the
+RECOMMENDED button restores them.
 
 Controls: Input / Peak Reduction / Threshold (model-dependent), Ratio,
 Attack, Release (hidden on 2A), Makeup, Mix and Sidechain HPF. The models use
@@ -199,8 +214,8 @@ cmake --install build
 
 ## Status
 
-0.8.0 adds the recommended guide, sample persistence and MIDI/offset
-triggering:
+0.9.0 adds the transient shaper and completes a regression pass over the
+Suite plugins:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
 - BLEED OUT page fully working (CLAP + LV2).
@@ -226,6 +241,8 @@ triggering:
   4× detection and sample peaks.
 - Recommended button and per-page value bar, using the drum cheat-sheet
   starting points.
+- COMP page transient shaper with bipolar Attack/Sustain and per-drum guide
+  values.
 - Sample path saved in CLAP state and the LV2 state interface; reloaded on
   recall.
 - MIDI sample trigger mode, any note-on.
@@ -233,9 +250,13 @@ triggering:
 - Five full-chain factory presets.
 - Every page stays inside the meter rails; the Sample browser is shortened so
   it no longer covers the global Input knob.
-- Tests: DSP, sample player/trigger modes/MIDI/offset, EQ, compressor, drive,
-  clipper, limiter, suggested ranges, state helpers, full-chain rates, power
-  bypass, recommended guide, panel loading, layout, geometry and TTL.
+- Transient shaper in the COMP page, before the compressor.
+- Per-drum transient defaults in the recommended guide.
+- All Suite plugin test suites were run as a regression pass.
+- Tests: DSP, transient shaper, sample player/trigger modes/MIDI/offset, EQ,
+  compressor, drive, clipper, limiter, suggested ranges, state helpers,
+  full-chain rates, power bypass, recommended guide, panel loading, layout,
+  geometry and TTL.
 
 Next: release QA.
 

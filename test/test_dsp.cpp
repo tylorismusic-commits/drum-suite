@@ -58,6 +58,7 @@ Controls base() {
   c.power = true;
   c.bypass = false;
   c.compOn = false;
+  c.transientOn = false;
   c.driveOn = false;
   c.clipOn = false;
   c.limitOn = false;
@@ -701,6 +702,7 @@ int main() {
       Controls c = base();
       c.gateOn = true;
       c.compOn = true;
+      c.transientOn = true;
       c.driveOn = true;
       c.clipOn = true;
       c.limitOn = true;
@@ -758,6 +760,54 @@ int main() {
     }
     check(rangeCount >= 20 * kDrumCount && rangesOk,
           "every drum has valid, distinct suggested ranges");
+  }
+
+
+  {
+    // Transient shaper: attack boosts the leading edge, negative sustain
+    // reduces the body, and bypass is transparent.
+    const int n = 4800;
+    std::vector<float> hit(n, 0.0f);
+    for (int i = 100; i < n; ++i) {
+      const float t = static_cast<float>(i - 100) / kSr;
+      hit[static_cast<size_t>(i)] =
+          0.6f * std::exp(-t / 0.045f) *
+          std::sin(2.0f * 3.14159265f * 180.0f * (i - 100) / kSr);
+    }
+    Controls flat = base();
+    flat.gateOn = false;
+    flat.transientOn = false;
+
+    Controls attack = flat;
+    attack.transientOn = true;
+    attack.transientAttack = 50.0f;
+    attack.transientSustain = 0.0f;
+    attack.transientSensitivity = 50.0f;
+
+    Controls sustain = flat;
+    sustain.transientOn = true;
+    sustain.transientAttack = 0.0f;
+    sustain.transientSustain = -100.0f;
+    sustain.transientSensitivity = 50.0f;
+
+    Render dry = run(flat, hit);
+    Render boosted = run(attack, hit);
+    Render tightened = run(sustain, hit);
+    float dryPeak = 0.0f, boostPeak = 0.0f;
+    for (int i = 100; i < 700; ++i) {
+      dryPeak = std::max(dryPeak, std::fabs(dry.l[i]));
+      boostPeak = std::max(boostPeak, std::fabs(boosted.l[i]));
+    }
+    const double dryTail = rms(dry.l, 1200, 4000);
+    const double tightTail = rms(tightened.l, 1200, 4000);
+    std::printf("  transient attack peak %.3f -> %.3f, tail %.1f -> %.1f dB\n",
+                dryPeak, boostPeak, db(dryTail), db(tightTail));
+    check(boostPeak > dryPeak * 1.05f,
+          "transient attack boosts the leading edge");
+    check(tightTail < dryTail * 0.95,
+          "negative transient sustain reduces the body");
+    check(finite(boosted.l) && finite(tightened.l),
+          "transient shaper stays finite");
   }
 
   std::printf("%d failure(s)\n", gFailures);
