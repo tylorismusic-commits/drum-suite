@@ -1,12 +1,12 @@
 # Drum Suite
 
-**Version 0.9.0-alpha.1 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0-alpha.2 — Linux x86_64** · GPL-3.0-or-later
 
 > **Public alpha.** The full seven-page chain is usable, but factory presets
 > and final tuning are planned after feedback. Expect parameter/preset changes;
 > use it on copies of important sessions.
 >
-> [Download v0.9.0-alpha.1](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.1)
+> [Download v0.9.0-alpha.2](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.2)
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -23,7 +23,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 
 | Page | Status |
 |---|---|
-| **BLEED OUT** | Working: Threshold, DeBleed, Ghost + scope |
+| **BLEED OUT** | Working: bypass, Threshold, DeBleed, Ghost + scope |
 | **SAMPLE** | Working: 4-voice loader, gate/transient trigger, pitch, start, reverse, choke, fade |
 | **EQ** | Working: low shelf, two peaks, high shelf, HPF/LPF + curve |
 | **COMP** | Working: transient shaper + 76 / 2A / VCA models, GR history |
@@ -220,11 +220,16 @@ cmake --install build
 
 ## Status
 
+**0.9.0-alpha.2 fixes:** Bleed Out bypass button; input/output and Sample
+offset suggestion highlights no longer cover markings; the Sample page knobs
+are on a clean 4×2 grid; and dragging a control replaces the footer caption
+with its value instead of drawing over it.
+
 0.9.0 adds the transient shaper and completes a regression pass over the
 Suite plugins:
 
 - 1040×720 panel with seven page tabs and the eight drum profiles.
-- BLEED OUT page fully working (CLAP + LV2).
+- BLEED OUT page fully working (CLAP + LV2), with a module **BYPASS** button.
 - SAMPLE page: folder browser, waveform, 4 voices, trigger from the gate,
   pitch/start/reverse/choke/fade and direct/sample balance.
 - EQ page: four bands + HPF/LPF with a live curve.

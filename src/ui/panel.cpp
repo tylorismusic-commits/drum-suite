@@ -451,7 +451,16 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
   };
 
   if (state.page == 0) {
-    // Bleed Out: the three controls that matter.
+    // Bleed Out: bypass plus the three controls that matter.
+    Widget bypass{};
+    bypass.kind = Kind::Bypass;
+    bypass.param = P_GATE_ON;
+    bypass.x = 100;
+    bypass.y = 182;
+    bypass.w = 64;
+    bypass.h = 26;
+    bypass.label = "BYPASS";
+    widgets_.push_back(bypass);
     knob(P_THRESHOLD, 220, 420, 46, "THRESHOLD");
     knob(P_DEBLEED, 500, 420, 46, "DEBLEED");
     knob(P_GHOST, 780, 420, 42, "GHOST AMOUNT", sc(kScaleGhost));
@@ -470,12 +479,12 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     // Sample page.
     pill(P_SAMPLE_ON, 100, 182, 150, 26, "SAMPLE ON");
     knob(P_SAMPLE_LEVEL, 520, 440, 26, "LEVEL");
-    knob(P_SAMPLE_DIRECT, 630, 440, 26, "DIRECT");
-    knob(P_SAMPLE_PITCH, 740, 440, 26, "PITCH");
-    knob(P_SAMPLE_START, 850, 440, 26, "START");
+    knob(P_SAMPLE_DIRECT, 620, 440, 26, "DIRECT");
+    knob(P_SAMPLE_PITCH, 720, 440, 26, "PITCH");
+    knob(P_SAMPLE_START, 820, 440, 26, "START");
     knob(P_SAMPLE_SENSITIVITY, 520, 555, 26, "SENSITIVITY");
-    knob(P_SAMPLE_FADE, 630, 555, 26, "FADE");
-    knob(P_SAMPLE_TRIGGER, 740, 555, 26, "TRIGGER",
+    knob(P_SAMPLE_FADE, 620, 555, 26, "FADE");
+    knob(P_SAMPLE_TRIGGER, 720, 555, 26, "TRIGGER",
          sc(kSampleTriggerLabels), false, 4);
     knob(P_SAMPLE_OFFSET, 820, 555, 26, "OFFSET");
     pill(P_SAMPLE_REVERSE, 540, 610, 100, 24, "REVERSE");
@@ -682,6 +691,7 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
         state.presetDirty = true;
         return true;
       case Kind::Pill:
+      case Kind::Bypass:
         shared.set(w.param, shared.get(w.param) > 0.5 ? 0.0 : 1.0);
         state.presetDirty = true;
         return true;
@@ -982,8 +992,10 @@ void Panel::drawBody(cairo_t* cr, int drum, int page) const {
       "DRIVE  -  valve / console / bus / tape / transformer",
       "CLIP  -  soft / hard / diode",
       "LIMIT  -  true-peak safety"};
-  text(cr, kPageCaptions[std::clamp(page, 0, 6)], kPanelWidth * 0.5, 709, 15,
-       1, 0.86, 0.82, 0.76);
+  if (dragParam_ < 0) {
+    text(cr, kPageCaptions[std::clamp(page, 0, 6)], kPanelWidth * 0.5, 709,
+         15, 1, 0.86, 0.82, 0.76);
+  }
 }
 
 void Panel::drawPlaceholderPage(cairo_t* cr, int page) const {
@@ -1815,6 +1827,9 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
     case Kind::PageTab:
       drawPill(cr, w, state.page == static_cast<int>(w.value), drum);
       break;
+    case Kind::Bypass:
+      drawPill(cr, w, shared.get(w.param) < 0.5, drum);
+      break;
     case Kind::DrumTab: {
       const bool selected = std::fabs(shared.get(P_DRUM) - w.value) < 0.5;
       roundRect(cr, w.x, w.y, w.w, w.h, 4);
@@ -2013,7 +2028,8 @@ void Panel::drawKnob(cairo_t* cr, const Widget& w, double value,
   const ParamSpec& spec = kParamSpecs[w.param];
   const SuggestedRange range = recommendedRange(w.param, drum);
   const double target = recommendedTarget(w.param, drum);
-  if (!spec.stepped && range.hi > range.lo) {
+  const bool showGuide = w.param != P_INPUT && w.param != P_OUTPUT && w.param != P_SAMPLE_OFFSET;
+  if (showGuide && !spec.stepped && range.hi > range.lo) {
     const double f0 = clamp01((range.lo - spec.min) /
                               std::max(1.0e-9, spec.max - spec.min));
     const double f1 = clamp01((range.hi - spec.min) /

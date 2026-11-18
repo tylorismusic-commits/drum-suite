@@ -98,6 +98,7 @@ private:
     Pill,
     Button,
     Toggle,
+    Bypass,
     Ghost,
     Guide,
   };
