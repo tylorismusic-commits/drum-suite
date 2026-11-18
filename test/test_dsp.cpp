@@ -278,6 +278,66 @@ int main() {
           "DeBleed keeps the high-frequency attack of the hit");
   }
 
+  {
+    // A sub-threshold snare must not open the de-bleed high band.  This is the
+    // "graph closed but I can still hear the snare" case: the body used to
+    // open the high band ~6 dB below the main gate, letting short crack blips
+    // through while the visible gate never opened.
+    const int n = static_cast<int>(kSr * 0.40f);
+    std::vector<float> in(n, 0.0f);
+    const int hit = static_cast<int>(kSr * 0.10f);
+    for (int i = 0; i < static_cast<int>(kSr * 0.25f); ++i) {
+      const float t = static_cast<float>(i) / kSr;
+      const float body = 0.55f * std::exp(-t / 0.075f) *
+                         (std::sin(2.0f * 3.14159265f * 190.0f * i / kSr) +
+                          0.5f * std::sin(2.0f * 3.14159265f * 330.0f * i / kSr));
+      const float crack = 0.35f * std::exp(-t / 0.090f) *
+                          (std::sin(2.0f * 3.14159265f * 2600.0f * i / kSr) +
+                           std::sin(2.0f * 3.14159265f * 3400.0f * i / kSr));
+      in[hit + i] = 0.15f * (body + crack);
+    }
+    Controls c = base();
+    c.drum = 0;  // Kick: the snare is bleed, not the target.
+    c.thresholdDb = -20.0f;
+    c.deBleed = 70.0f;
+    Render r = run(c, in);
+    const int od = 45 + 141;  // clipper + limiter latency
+    const double a = rms(in, hit, hit + static_cast<int>(kSr * 0.05f));
+    const double b =
+        rms(r.l, hit + od, hit + od + static_cast<int>(kSr * 0.05f));
+    std::printf("  sub-threshold snare %.1f -> %.1f dB (cut %.1f dB)\n",
+                db(a), db(b), db(a) - db(b));
+    check(db(a) - db(b) > 30.0,
+          "sub-threshold snare does not open the de-bleed high band");
+  }
+
+  {
+    // The target kick's own beater click must survive the de-bleed.
+    const int n = static_cast<int>(kSr * 0.25f);
+    std::vector<float> in(n, 0.0f);
+    const int hit = static_cast<int>(kSr * 0.05f);
+    for (int i = 0; i < static_cast<int>(kSr * 0.18f); ++i) {
+      const float t = static_cast<float>(i) / kSr;
+      in[hit + i] = 0.5f * std::exp(-t / 0.14f) *
+                        std::sin(2.0f * 3.14159265f * 55.0f * i / kSr) +
+                    0.08f * std::exp(-t / 0.0035f) *
+                        std::sin(2.0f * 3.14159265f * 2600.0f * i / kSr);
+    }
+    Controls c = base();
+    c.drum = 0;
+    c.thresholdDb = -20.0f;
+    c.deBleed = 70.0f;
+    Render r = run(c, in);
+    const int od = 45 + 141;
+    const int ca = hit + od;
+    const int cb = hit + od + static_cast<int>(kSr * 0.005f);
+    const double a = toneLevel(in, ca, cb, 2600.0);
+    const double b = toneLevel(r.l, ca, cb, 2600.0);
+    std::printf("  kick click %.1f -> %.1f dB (cut %.1f dB)\n", db(a), db(b),
+                db(a) - db(b));
+    check(db(a) - db(b) < 8.0, "the target kick keeps its beater click");
+  }
+
 
   {
     // Sample player: a gate trigger fires one voice, fades in, and the voice

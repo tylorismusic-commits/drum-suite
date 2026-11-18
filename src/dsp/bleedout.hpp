@@ -64,12 +64,7 @@ public:
     }
     const Profile& p = kProfiles[drum_];
     threshold_ = hdsp::dbToGain(c.thresholdDb);
-    // The body detector is a band-weighted amplitude, so it sits below the
-    // full-band detector.  Use a lower threshold so quiet snare bodies and
-    // ghost notes still open the high band, but cymbal-only wash does not.
-    bodyThreshold_ = threshold_ * hdsp::dbToGain(-6.0f);
     closeThreshold_ = threshold_ * hdsp::dbToGain(-p.hysteresisDb);
-    closeBodyThreshold_ = bodyThreshold_ * hdsp::dbToGain(-p.hysteresisDb);
     minGain_ = hdsp::dbToGain(-p.reductionDb);
     deBleed_ = hdsp::clampf(c.deBleed * 0.01f, 0.0f, 1.0f);
     // DeBleed is an attenuation amount, not a linear gain: 50 % should sound
@@ -119,9 +114,8 @@ public:
     gateOpen_ = false;
     triggerPrev_ = false;
     ghostTriggerPrev_ = false;
-    bodyWasHot_ = false;
-    mainWasHot_ = false;
     envDet_ = 0.0f;
+    mainWasHot_ = false;
     for (int i = 0; i < 3; ++i) {
       bandFast_[i] = 0.0f;
     }
@@ -172,13 +166,6 @@ public:
       const float det = weights_[0] * bandFast_[0] +
                         weights_[1] * bandFast_[1] +
                         weights_[2] * bandFast_[2];
-      // Body detector for the high-band sidechain.  The high band is included
-      // at reduced weight so hats/rides still open their own high band, while a
-      // snare's cymbal wash does not dominate the body detector.
-      const float bodyDet =
-          (weights_[0] * bandFast_[0] + weights_[1] * bandFast_[1] +
-           weights_[2] * bandFast_[2] * 0.25f) /
-          std::max(0.001f, weights_[0] + weights_[1] + weights_[2] * 0.25f);
       envDet_ += (det - envDet_) * (1.0f - detRelease_);
       envDet_ = flushDenormal(envDet_);
       const float transient = std::max(0.0f, det - envDet_);
@@ -198,24 +185,20 @@ public:
                   (target ? attackCoef_ : releaseCoef_);
       gateEnv_ = flushDenormal(gateEnv_);
 
-      // De-bleed sidechain.  It is one-shot, not a level gate: each drum hit
-      // opens the high band for the attack, then the band closes again even
-      // while the body is still ringing.  That is what removes cymbal wash
-      // *during* the hit instead of only between hits.  The main gate edge is
-      // a backup trigger for bright drums whose body detector is weak.
+      // De-bleed sidechain.  It is one-shot, not a level gate: each detected
+      // target hit opens the high band for the attack, then the band closes
+      // again even while the body is still ringing.  That is what removes
+      // cymbal wash *during* the hit instead of only between hits.
+      //
+      // The trigger is the edge of the *same* detector that opens the main
+      // gate.  Anything below the main threshold is bleed, so it must not be
+      // able to open the high band: otherwise a quiet snare body that never
+      // opens the visible gate still lets its crack through as a short blip.
       if (det > threshold_ && !mainWasHot_) {
         mainWasHot_ = true;
-        bodyHold_ = std::max(bodyHold_, hbHoldSamples_);
+        bodyHold_ = hbHoldSamples_;
       } else if (det < closeThreshold_) {
         mainWasHot_ = false;
-      }
-      if (bodyDet > bodyThreshold_) {
-        if (!bodyWasHot_) {
-          bodyWasHot_ = true;
-          bodyHold_ = hbHoldSamples_;
-        }
-      } else if (bodyDet < closeBodyThreshold_) {
-        bodyWasHot_ = false;
       }
       if (bodyHold_ > 0) --bodyHold_;
       const bool bodyTarget = controls_.gateOn && (bodyHold_ > 0);
@@ -339,9 +322,7 @@ private:
   int lookaheadSamples_ = 96;
 
   float threshold_ = 1.0f;
-  float bodyThreshold_ = 0.9f;
   float closeThreshold_ = 1.0f;
-  float closeBodyThreshold_ = 0.9f;
   float minGain_ = 0.001f;
   float deBleed_ = 0.7f;
   float deBleedFloor_ = 1.0f;
@@ -357,7 +338,6 @@ private:
   bool ghostTriggerPrev_ = false;
   float gateEnv_ = 0.0f;
 
-  bool bodyWasHot_ = false;
   bool mainWasHot_ = false;
   int bodyHold_ = 0;
   float bodyEnv_ = 0.0f;
@@ -382,4 +362,4 @@ private:
   int midiGhostHold_ = 0;
 };
 
-} // namespace drum
+} // namespace bleed

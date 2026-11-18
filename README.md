@@ -1,12 +1,12 @@
 # Drum Suite
 
-**Version 0.9.0-alpha.3 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0-alpha.4 — Linux x86_64** · GPL-3.0-or-later
 
 > **Public alpha.** The full seven-page chain is usable, but factory presets
 > and final tuning are planned after feedback. Expect parameter/preset changes;
 > use it on copies of important sessions.
 >
-> [Download v0.9.0-alpha.3](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.3)
+> [Download v0.9.0-alpha.4](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.4)
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -23,7 +23,7 @@ Input → BLEED OUT → SAMPLE → EQ → COMP → DRIVE → CLIP → LIMIT → 
 
 | Page | Status |
 |---|---|
-| **BLEED OUT** | Working: bypass, Threshold, DeBleed, Ghost + scope |
+| **BLEED OUT** | Working: bypass, Threshold, DeBleed, Ghost + scope; high band follows the gate edge |
 | **SAMPLE** | Working: 4-voice loader, gate/transient trigger, pitch, start, reverse, choke, fade |
 | **EQ** | Working: low shelf, two peaks, high shelf, HPF/LPF + curve |
 | **COMP** | Working: transient shaper + 76 / 2A / VCA models, GR history |
@@ -219,6 +219,11 @@ cmake --install build
 ```
 
 ## Status
+
+**0.9.0-alpha.4 fixes:** the Bleed Out high band now triggers from the main
+gate edge. Sub-threshold snare/hat bleed can no longer open the de-bleed high
+band while the visible gate is closed, so the short snare blips on a full-kit
+sample are gone. Kick beater click and body are unchanged.
 
 **0.9.0-alpha.3 fixes:** the Sample Trigger labels (Transient / Always) clear
 the knob; the diode transfer curve stays inside its box; and typed release,
