@@ -7,6 +7,6 @@ namespace drum {
 constexpr int kVersionMajor = 0;
 constexpr int kVersionMinor = 9;
 constexpr int kVersionMicro = 0;
-constexpr const char* kVersion = "0.9.0-alpha.2";
+constexpr const char* kVersion = "0.9.0-alpha.3";
 
 } // namespace drum

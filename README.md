@@ -1,12 +1,12 @@
 # Drum Suite
 
-**Version 0.9.0-alpha.2 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0-alpha.3 — Linux x86_64** · GPL-3.0-or-later
 
 > **Public alpha.** The full seven-page chain is usable, but factory presets
 > and final tuning are planned after feedback. Expect parameter/preset changes;
 > use it on copies of important sessions.
 >
-> [Download v0.9.0-alpha.2](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.2)
+> [Download v0.9.0-alpha.3](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.3)
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.
@@ -219,6 +219,11 @@ cmake --install build
 ```
 
 ## Status
+
+**0.9.0-alpha.3 fixes:** the Sample Trigger labels (Transient / Always) clear
+the knob; the diode transfer curve stays inside its box; and typed release,
+attack and lookahead values accept real times — typing `60 ms` on Release now
+lands at 60 ms instead of maxing the control.
 
 **0.9.0-alpha.2 fixes:** Bleed Out bypass button; input/output and Sample
 offset suggestion highlights no longer cover markings; the Sample page knobs

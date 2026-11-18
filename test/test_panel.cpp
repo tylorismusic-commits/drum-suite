@@ -317,6 +317,15 @@ int main() {
     check(parseParamValue(shared, P_LIMIT_CEILING, "-1 dB", &v) &&
               std::fabs(-12.0 + 12.0 * v + 1.0) < 1e-9,
           "typed limiter ceiling accepts -1 dB");
+    check(parseParamValue(shared, P_LIMIT_RELEASE, "60 ms", &v) &&
+              v > 0.2 && v < 0.4,
+          "typed limiter release accepts 60 ms without maxing out");
+    check(parseParamValue(shared, P_COMP_RELEASE, "60 ms", &v) &&
+              v < 0.2,
+          "typed compressor release accepts 60 ms without maxing out");
+    check(parseParamValue(shared, P_LIMIT_LOOKAHEAD, "1 ms", &v) &&
+              std::fabs(v - 0.444444) < 1e-4,
+          "typed lookahead accepts 1 ms");
   }
 
   cairo_destroy(cr);

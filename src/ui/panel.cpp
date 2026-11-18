@@ -485,7 +485,7 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     knob(P_SAMPLE_SENSITIVITY, 520, 555, 26, "SENSITIVITY");
     knob(P_SAMPLE_FADE, 620, 555, 26, "FADE");
     knob(P_SAMPLE_TRIGGER, 720, 555, 26, "TRIGGER",
-         sc(kSampleTriggerLabels), false, 4);
+         sc(kSampleTriggerLabels), false, 4, 1.7);
     knob(P_SAMPLE_OFFSET, 820, 555, 26, "OFFSET");
     pill(P_SAMPLE_REVERSE, 540, 610, 100, 24, "REVERSE");
     pill(P_SAMPLE_CHOKE, 660, 610, 100, 24, "CHOKE");
@@ -1450,7 +1450,7 @@ void Panel::drawDrivePage(cairo_t* cr, const Shared& shared,
     const float x = -1.0f + 2.0f * static_cast<float>(i) / kPoints;
     const float y = patina::modelShape(model, drive, character, x) * shapeScale;
     const double px = gx + gw * (0.5 + 0.5 * x);
-    const double py = gy + gh * (0.5 - 0.42 * y);
+    const double py = gy + gh * (0.5 - 0.32 * y);
     if (i == 0) cairo_move_to(cr, px, py);
     else cairo_line_to(cr, px, py);
   }
@@ -1531,13 +1531,25 @@ void Panel::drawClipPage(cairo_t* cr, const Shared& shared,
   cairo_line_to(cr, gx + gw, gy);
   cairo_stroke(cr);
 
-  cairo_new_path(cr);
   constexpr int kPoints = 240;
+  float yMin = 0.0f, yMax = 0.0f;
+  for (int i = 0; i <= kPoints; ++i) {
+    const float x = -2.0f + 4.0f * static_cast<float>(i) / kPoints;
+    const float y = clipShapeValue(shape, x);
+    yMin = i == 0 ? y : std::min(yMin, y);
+    yMax = i == 0 ? y : std::max(yMax, y);
+  }
+  // Fit the curve to the plot for this shape, so the asymmetric diode curve
+  // stays inside the transfer box at both extremes.
+  const double yMid = 0.5 * (yMin + yMax);
+  const double ySpan = std::max(static_cast<double>(yMax - yMin), 1e-3);
+
+  cairo_new_path(cr);
   for (int i = 0; i <= kPoints; ++i) {
     const float x = -2.0f + 4.0f * static_cast<float>(i) / kPoints;
     const float y = clipShapeValue(shape, x);
     const double px = gx + gw * (0.5 + 0.25 * x);
-    const double py = gy + gh * (0.5 - 0.42 * y);
+    const double py = gy + gh * (0.5 - 0.86 * (y - yMid) / ySpan);
     if (i == 0) cairo_move_to(cr, px, py);
     else cairo_line_to(cr, px, py);
   }

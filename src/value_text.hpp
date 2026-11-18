@@ -123,7 +123,7 @@ inline std::string formatEditValue(const Shared& shared, uint32_t id,
   return formatParamValue(shared, id, value);
 }
 
-inline bool parseParamValue(const Shared&, uint32_t id,
+inline bool parseParamValue(const Shared& shared, uint32_t id,
                             const std::string& raw, double* out) {
   const ParamSpec& s = kParamSpecs[id];
   const std::string text = lowerText(trimText(raw));
@@ -139,15 +139,46 @@ inline bool parseParamValue(const Shared&, uint32_t id,
   char* end = nullptr;
   double v = std::strtod(text.c_str(), &end);
   if (end == text.c_str()) return false;
+  const std::string suffix = trimText(std::string(end));
+  auto hz = [&]() {
+    return suffix == "khz" || suffix == "k" ? v * 1000.0 : v;
+  };
+  auto ms = [&]() {
+    return suffix == "s" || suffix == "sec" ? v * 1000.0 : v;
+  };
   if (id == P_EQ_LOW || id == P_EQ_LOW_MID || id == P_EQ_HIGH_MID ||
       id == P_EQ_HIGH) {
     v = v / 24.0 + 0.5;
   } else if (id == P_EQ_HPF) {
-    v = std::log(std::max(v, 20.0) / 20.0) / std::log(25.0);
+    v = std::log(std::max(hz(), 20.0) / 20.0) / std::log(25.0);
   } else if (id == P_EQ_LPF) {
-    v = std::log(std::max(v, 500.0) / 500.0) / std::log(40.0);
+    v = std::log(std::max(hz(), 500.0) / 500.0) / std::log(40.0);
   } else if (id == P_COMP_MAKEUP) {
     v = v / 20.0 + 0.5;
+  } else if (id == P_COMP_ATTACK || id == P_COMP_RELEASE) {
+    const int model = static_cast<int>(shared.get(P_COMP_MODEL) + 0.5);
+    const double t = ms();
+    if (model == 0) {
+      if (id == P_COMP_ATTACK) {
+        v = std::round(6.0 * std::log(std::max(t, 0.001) / 0.04) /
+                       std::log(40.0)) /
+            6.0;
+      } else {
+        v = std::round(6.0 * std::log(std::max(t, 0.001) / 50.0) /
+                       std::log(22.0)) /
+            6.0;
+      }
+    } else if (model == 2) {
+      v = id == P_COMP_ATTACK
+              ? std::log(std::max(t, 0.01) / 0.1) / std::log(300.0)
+              : std::log(std::max(t, 0.01) / 100.0) / std::log(12.0);
+    } else {
+      return false;  // Program-dependent 2A release/attack.
+    }
+  } else if (id == P_LIMIT_RELEASE) {
+    v = std::log(std::max(ms(), 20.0) / 20.0) / std::log(50.0);
+  } else if (id == P_LIMIT_LOOKAHEAD) {
+    v = (ms() - 0.2) / 1.8;
   } else if (id == P_CLIP_CEILING || id == P_LIMIT_CEILING) {
     v = (v + 12.0) / 12.0;
   }
