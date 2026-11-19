@@ -535,6 +535,75 @@ int main() {
           "unlocking lets recommended update the page");
   }
 
+
+  {
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "drum-suite-preset-test";
+    fs::remove_all(root);
+    fs::create_directories(root / "config");
+    fs::create_directories(root / "home");
+    const std::string oldXdg =
+        std::getenv("XDG_CONFIG_HOME") ? std::getenv("XDG_CONFIG_HOME") : "";
+    const std::string oldHome =
+        std::getenv("HOME") ? std::getenv("HOME") : "";
+    setenv("XDG_CONFIG_HOME", (root / "config").string().c_str(), 1);
+    setenv("HOME", (root / "home").string().c_str(), 1);
+
+    Shared us;
+    PanelState ustate;
+    Panel upanel;
+    us.set(P_DEBLEED, 0.66);
+    const double saved = us.get(P_DEBLEED);
+    upanel.handlePresetClick(us, ustate, 72 + 165, 32);
+    upanel.handlePresetClick(us, ustate, 100, 450);
+    check(ustate.savePreset, "SAVE opens the name field");
+    for (char c : std::string("My Drum Chain")) {
+      upanel.textKey(us, ustate, 0, c);
+    }
+    upanel.textKey(us, ustate, Panel::kTextEnter, 0);
+    check(ustate.userPresets.size() == 1, "user preset is written");
+    check(ustate.presetIndex == kPresetCount, "saved preset becomes active");
+    us.set(P_DEBLEED, 0.1);
+    upanel.applyPreset(us, ustate, ustate.presetIndex);
+    check(std::fabs(us.get(P_DEBLEED) - saved) < 1e-9,
+          "user preset recalls every parameter");
+
+    upanel.handlePresetClick(us, ustate, 72 + 165, 32);
+    upanel.handlePresetClick(us, ustate, 100, 480);
+    for (char c : std::string("Renamed")) {
+      upanel.textKey(us, ustate, 0, c);
+    }
+    upanel.textKey(us, ustate, Panel::kTextEnter, 0);
+    check(ustate.userPresets.size() == 1 &&
+              ustate.userPresets[0].name == "Renamed",
+          "user preset renames");
+
+    upanel.handlePresetClick(us, ustate, 72 + 165, 32);
+    upanel.handlePresetClick(us, ustate, 180, 450);
+    check(ustate.userPresets.size() == 2, "DUPLICATE creates a preset");
+
+    upanel.handlePresetClick(us, ustate, 72 + 165, 32);
+    upanel.handlePresetClick(us, ustate, 250, 480);
+    const fs::path exported = userPresetExportDir() /
+                              (std::string("Renamed copy") +
+                               kUserPresetExt);
+    check(fs::exists(exported), "EXPORT writes a preset file");
+
+    upanel.handlePresetClick(us, ustate, 72 + 165, 32);
+    upanel.handlePresetClick(us, ustate, 180, 480);
+    upanel.handlePresetClick(us, ustate, 180, 480);
+    check(ustate.userPresets.size() == 1, "DELETE removes the preset");
+    check(upanel.importDroppedFile(us, ustate, exported.string()),
+          "IMPORT accepts a dropped preset file");
+    check(ustate.userPresets.size() == 2, "import adds a preset");
+
+    if (!oldXdg.empty()) setenv("XDG_CONFIG_HOME", oldXdg.c_str(), 1);
+    else unsetenv("XDG_CONFIG_HOME");
+    if (!oldHome.empty()) setenv("HOME", oldHome.c_str(), 1);
+    else unsetenv("HOME");
+    fs::remove_all(root);
+  }
+
   cairo_destroy(cr);
   cairo_surface_destroy(surf);
   std::printf("%d failure(s)\n", gFailures);

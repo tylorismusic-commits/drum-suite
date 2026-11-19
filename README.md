@@ -283,6 +283,9 @@ offset suggestion highlights no longer cover markings; the Sample page knobs
 are on a clean 4×2 grid; and dragging a control replaces the footer caption
 with its value instead of drawing over it.
 
+The preset bar now has a factory and user bank: save, rename, duplicate,
+delete, export and drag-drop import.
+
 0.9.0 adds the transient shaper and completes a regression pass over the
 Suite plugins:
 
