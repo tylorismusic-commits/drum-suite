@@ -416,6 +416,92 @@ int main() {
           "instrument.sfz is renamed from its folder and samples copied");
   }
 
+  {
+    const std::filesystem::path root = "/tmp/opencode/drum_zone_test";
+    std::error_code ec;
+    std::filesystem::remove_all(root, ec);
+    const auto samples = root / "data/drum-suite/samples";
+    std::filesystem::create_directories(samples, ec);
+    setenv("XDG_DATA_HOME", (root / "data").string().c_str(), 1);
+    writeTestWav(samples / "A.wav");
+    writeTestWav(samples / "B.wav");
+    Shared shared;
+    Panel panel;
+    PanelState state;
+    state.page = 1;
+    state.sampleDirPath = samples.string();
+    panel.tick(shared, state);
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 660, 195, false);
+    panel.pointerUp();
+    check(state.sampleMode == 1, "ZONES opens the zone map");
+
+    // FOLDER RR maps the two WAVs as round robins.
+    panel.pointerDown(shared, state, 240, 136, false);
+    panel.pointerUp();
+    check(shared.instrument() && shared.instrument()->zones.size() == 2,
+          "FOLDER RR loads the folder as two zones");
+    check(shared.instrument() &&
+              shared.instrument()->zones[0].seqLength == 2 &&
+              shared.instrument()->zones[1].seqPosition == 2,
+          "FOLDER RR assigns round-robin positions");
+
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 200, 212, false);
+    panel.pointerUp();
+    check(state.zoneSelected == 1, "clicking a zone row selects it");
+
+    // Start slider edits the selected zone.
+    const float before = shared.instrument()->zones[1].start;
+    panel.pointerDown(shared, state, 300, 500, false);
+    panel.pointerUp();
+    check(shared.instrument()->zones[1].start > before,
+          "START slider edits the selected zone");
+
+    // Slice the selected sample into four round robins.
+    panel.pointerDown(shared, state, 350, 136, false);
+    panel.pointerUp();
+    check(shared.instrument() && shared.instrument()->zones.size() == 4,
+          "SLICE x4 creates four zones");
+    check(std::filesystem::exists(samples / "_drum_map.sfz"),
+          "zone edits persist to a generated SFZ");
+
+    panel.pointerDown(shared, state, 910, 136, false);
+    panel.pointerUp();
+    check(state.sampleMode == 0, "CLOSE returns to the sample page");
+  }
+
+  {
+    const std::filesystem::path root = "/tmp/opencode/drum_browser_test";
+    std::error_code ec;
+    std::filesystem::remove_all(root, ec);
+    const auto samples = root / "data/drum-suite/samples";
+    std::filesystem::create_directories(samples / "Sub", ec);
+    setenv("XDG_DATA_HOME", (root / "data").string().c_str(), 1);
+    writeTestWav(samples / "Sub/Hit.wav");
+    Shared shared;
+    Panel panel;
+    PanelState state;
+    state.page = 1;
+    panel.tick(shared, state);
+    check(state.sampleDirs.size() == 1 && state.sampleDirs[0] == "Sub",
+          "browser lists subfolders");
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 200, 270, false);
+    panel.pointerUp();
+    state.sampleScanTicks = 59;
+    panel.tick(shared, state);
+    check(state.sampleDirPath.find("Sub") != std::string::npos &&
+              state.sampleFiles.size() == 1,
+          "clicking a folder enters it");
+    panel.draw(cr, shared, state);
+    panel.pointerDown(shared, state, 200, 295, false);
+    panel.pointerUp();
+    check(shared.instrument() &&
+              shared.instrument()->path.find("Sub/Hit.wav") != std::string::npos,
+          "a WAV inside a folder can be loaded");
+  }
+
   cairo_destroy(cr);
   cairo_surface_destroy(surf);
   std::printf("%d failure(s)\n", gFailures);

@@ -39,6 +39,7 @@ public:
     pendingMidi_ = 0;
     rr_ = 0;
     rng_ = 0x1234567u;
+    prevGate_ = false;
     if (!pending_.empty()) {
       std::fill(pending_.begin(), pending_.end(), 0);
     }
@@ -106,13 +107,15 @@ public:
     for (int i = 0; i < frames; ++i) {
       const float peak = std::max(std::fabs(left[i]), std::fabs(right[i]));
       const bool gateFire = trigger && trigger[i];
+      const bool gateEdge = gateFire && !prevGate_;
+      prevGate_ = gateFire;
       const bool transientFire =
           peak > triggerThreshold_ && prevPeak_ <= triggerThreshold_;
       bool fire = false;
       switch (triggerMode_) {
-        case 0: fire = gateFire; break;
+        case 0: fire = gateEdge; break;
         case 1: fire = transientFire; break;
-        case 2: fire = gateFire || transientFire; break;
+        case 2: fire = gateEdge || transientFire; break;
         default: fire = false; break;
       }
       if (pendingMidi_ > 0 &&
@@ -156,9 +159,9 @@ public:
                              static_cast<float>(fadeSamples_);
           --v.fadeIn;
         }
-        const float remaining =
-            v.step >= 0.0f ? (static_cast<float>(len - 1) - v.pos)
-                           : (v.pos - 0.0f);
+        const float remaining = v.step >= 0.0f
+                                    ? (v.endPos - v.pos)
+                                    : (v.pos - v.startPos);
         if (remaining < fadeSamples_) {
           env *= std::max(0.0f, remaining) /
                  static_cast<float>(fadeSamples_);
@@ -167,14 +170,19 @@ public:
         outR += sr * env * v.gainR;
         v.pos += v.step;
         if (v.loop && s.loopStart >= 0 && s.loopEnd > s.loopStart) {
-          const float loopStart = static_cast<float>(s.loopStart);
-          const float loopEnd = static_cast<float>(s.loopEnd);
-          if (v.step > 0.0f) {
-            while (v.pos >= loopEnd) v.pos -= (loopEnd - loopStart);
-          } else {
-            while (v.pos < loopStart) v.pos += (loopEnd - loopStart);
+          const float loopStart = std::max(
+              v.startPos, static_cast<float>(s.loopStart));
+          const float loopEnd =
+              std::min(v.endPos, static_cast<float>(s.loopEnd));
+          if (loopEnd > loopStart) {
+            if (v.step > 0.0f) {
+              while (v.pos >= loopEnd) v.pos -= (loopEnd - loopStart);
+            } else {
+              while (v.pos < loopStart) v.pos += (loopEnd - loopStart);
+            }
           }
-        } else if (v.pos < 0.0f || v.pos >= static_cast<float>(len - 1)) {
+        }
+        if (v.pos < v.startPos || v.pos >= v.endPos) {
           v.active = false;
         }
       }
@@ -195,6 +203,8 @@ private:
     int group = 0;
     float gainL = 1.0f;
     float gainR = 1.0f;
+    float startPos = 0.0f;
+    float endPos = 1.0f;
     bool loop = false;
     std::shared_ptr<const SampleBuffer> sample;
   };
@@ -308,8 +318,16 @@ private:
           std::pow(2.0f, (semis * 100.0f + cents) / 1200.0f) * rate;
       const size_t len = z.sample->data.size();
       v.step = (reverse_ != z.reverse) ? -stepBase : stepBase;
-      const float startPos = start_ * static_cast<float>(len > 0 ? len - 1 : 0);
-      v.pos = v.step >= 0.0f ? startPos : static_cast<float>(len) - 1.0f - startPos;
+      const float z0 = std::clamp(z.start, 0.0f, 1.0f) *
+                       static_cast<float>(len > 0 ? len - 1 : 0);
+      const float z1 = std::clamp(z.end, 0.0001f, 1.0f) *
+                       static_cast<float>(len > 0 ? len - 1 : 0);
+      const float zoneSpan = std::max(1.0f, z1 - z0);
+      const float startPos = z0 + start_ * zoneSpan;
+      v.pos = v.step >= 0.0f ? startPos
+                             : z0 + z1 - startPos;
+      v.startPos = z0;
+      v.endPos = z1;
       v.fadeIn = fadeSamples_;
       const float gain = std::pow(10.0f, z.gainDb / 20.0f);
       const float pan = std::clamp(z.pan, -1.0f, 1.0f);
@@ -342,6 +360,7 @@ private:
   std::vector<int> pendingVel_;
   float triggerThreshold_ = 0.02f;
   float prevPeak_ = 0.0f;
+  bool prevGate_ = false;
   int nextVoice_ = 0;
   std::vector<uint32_t> zoneSeq_;
   std::shared_ptr<const Instrument> instrument_;

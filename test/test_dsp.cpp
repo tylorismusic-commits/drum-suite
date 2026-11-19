@@ -191,6 +191,28 @@ int main() {
   }
 
   {
+    // MIDI velocity scales the ghost window without touching the Ghost knob.
+    const int n = static_cast<int>(kSr * 0.12f);
+    std::vector<float> in(n, 0.0f);
+    for (int i = 0; i < n; ++i) {
+      in[i] = 0.01f * std::sin(2.0f * 3.14159265f * 1000.0f * i / kSr);
+    }
+    Controls high = base();
+    high.ghostMode = true;
+    high.ghost = 100.0f;
+    high.ghostTrigger = 1;
+    high.ghostVelocity = 1.0f;
+    Controls low = high;
+    low.ghostVelocity = 0.2f;
+    Render rh = run(high, in);
+    Render rl = run(low, in);
+    const double eh = rms(rh.l, 0, static_cast<size_t>(n));
+    const double el = rms(rl.l, 0, static_cast<size_t>(n));
+    std::printf("  ghost velocity rms high=%.6f low=%.6f\n", eh, el);
+    check(eh > el * 1.15, "MIDI velocity scales the ghost window");
+  }
+
+  {
     // A loud hit opens the gate.
     const int n = static_cast<int>(kSr * 0.20f);
     std::vector<float> in(n, 0.0f);

@@ -233,6 +233,29 @@ int main() {
   for (float v : l) loud += std::fabs(v);
   assert(loud > quiet * 2.0);
 
+  {
+    // A held gate must trigger once, not every sample.
+    auto buffer = std::make_shared<drum::SampleBuffer>();
+    buffer->data.assign(8000, 0.1f);
+    buffer->sampleRate = 48000;
+    drum::SamplePlayer p;
+    p.prepare(48000.0f);
+    p.setSample(buffer);
+    drum::Controls c;
+    c.sampleOn = true;
+    c.sampleLevel = 100.0f;
+    c.sampleDirect = 0.0f;
+    c.sampleChoke = false;
+    c.sampleTrigger = 0;
+    c.sampleNote = 36;
+    p.setControls(c);
+    std::vector<float> l(512, 0.0f), r(512, 0.0f);
+    std::vector<uint8_t> gate(512, 1);
+    drum::Meters m;
+    p.process(l.data(), r.data(), gate.data(), 512, m);
+    assert(m.sampleVoices <= 1);
+  }
+
   std::printf("drum_instrument: ok\n");
   return 0;
 }

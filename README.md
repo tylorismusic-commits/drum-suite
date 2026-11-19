@@ -61,14 +61,23 @@ the sample folder. Relative SFZ sample paths are preserved; name collisions get
 a `(2)` suffix, and a file called `instrument.sfz` is renamed from its parent
 folder so TCI packs do not overwrite each other.
 
-Click a file in the page to load it. **LOAD ALL WAVS** turns every WAV in the
-folder into a velocity-layered instrument, sorted by peak unless the filenames
-carry `V01`/`RR1` tags. The list refreshes while the editor is open.
+The browser shows folders first; click a folder to enter it, `..` to go back.
+`.wav`, `.flac`, `.sfz` and `.sf2` files can be loaded. **LOAD ALL WAVS** maps
+the current folder as velocity layers; **ZONES** opens the full map editor.
+
+The zone map lists every region and lets you edit start/end, velocity range,
+round-robin position/length and root note. **FOLDER VEL** and **FOLDER RR**
+rebuild the map from the current folder as velocity layers or round robins.
+**SLICE x4** detects four hits in the selected sample and creates four
+round-robin slices. Edits are written to `_drum_map.sfz` in the sample folder
+so they survive a session reload.
 
 The player supports up to 32 voices, SFZ/SF2 key and velocity ranges, round
 robins (`seq_length`/`seq_position`), choke groups (`group`/`off_by`), stereo
-samples, loop points and per-zone tuning/pan/volume. SFZ amplitude envelopes
-and filters are not implemented yet; the sample plays as a one-shot.
+samples, FLAC/WAV, loop points and per-zone start/end, tuning, pan and volume.
+SFZ amplitude envelopes and filters are not implemented yet; the sample plays
+as a one-shot. Audio gate triggers are edge-detected, so a held gate fires once
+instead of retriggering every sample.
 
 - **MIDI Note** picks the note that triggers this instance. The default follows
   the drum tab using the GM map: Kick C1 (36), Snare D1 (38), Tom A1 (45),

@@ -269,6 +269,8 @@ struct Zone {
   float tuneCents = 0.0f;
   float gainDb = 0.0f;
   float pan = 0.0f;        // -1..1
+  float start = 0.0f;      // 0..1 inside the sample
+  float end = 1.0f;        // 0..1 inside the sample
   bool loop = false;
   bool reverse = false;
 };
@@ -307,6 +309,7 @@ struct Controls {
   int ghostNote = 38;
   int ghostCc = 74;
   int ghostTrigger = 0;
+  float ghostVelocity = 1.0f;
 
   // Transient shaper.
   bool transientOn = true;

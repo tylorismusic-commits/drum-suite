@@ -41,7 +41,12 @@ struct PanelState {
   float limitGrDb = 0.0f;
   float limitHistory[Shared::kScopeSize] = {};
   std::vector<std::string> sampleFiles;
+  std::vector<std::string> sampleDirs;
+  std::string sampleDirPath;
   int sampleScroll = 0;
+  int sampleMode = 0;      // 0 files, 1 zone map
+  int zoneSelected = 0;
+  int zoneScroll = 0;
   int sampleScanTicks = 60;
 };
 
@@ -107,6 +112,7 @@ private:
     Ghost,
     Guide,
     LoadFolder,
+    Zones,
   };
 
   struct Widget {
@@ -133,6 +139,15 @@ private:
   void drawPlaceholderPage(cairo_t* cr, int page) const;
   void drawSamplePage(cairo_t* cr, const Shared& shared,
                       const PanelState& state) const;
+  void drawZoneOverlay(cairo_t* cr, Shared& shared,
+                       const PanelState& state) const;
+  bool handleZoneOverlay(Shared& shared, PanelState& state, double x,
+                         double y);
+  void setZoneValue(Shared& shared, PanelState& state, int field,
+                    double value);
+  void saveZoneMap(Shared& shared, PanelState& state);
+  void loadFolderMap(Shared& shared, PanelState& state, bool roundRobin);
+  void sliceSelectedZone(Shared& shared, PanelState& state);
   void drawEqPage(cairo_t* cr, const Shared& shared,
                   const PanelState& state) const;
   void drawCompPage(cairo_t* cr, const Shared& shared,
@@ -173,6 +188,7 @@ private:
   mutable std::vector<float> waveMin_;
   mutable std::vector<float> waveMax_;
   int dragParam_ = -1;
+  int zoneDrag_ = -1;
   int dragSteps_ = 0;
   double dragStartY_ = 0.0;
   double dragStartValue_ = 0.0;

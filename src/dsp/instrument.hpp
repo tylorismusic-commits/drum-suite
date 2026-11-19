@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "controls.hpp"
+#include "flac.hpp"
 #include "wav.hpp"
 
 namespace drum {
@@ -75,7 +76,11 @@ inline int noteNumber(const std::string& raw) {
 inline std::shared_ptr<const SampleBuffer> loadWavBuffer(
     const std::string& path) noexcept {
   WavData wav;
-  if (!readWavData(path, wav, 0) || wav.left.empty()) return nullptr;
+  const std::string ext = lowerAscii(
+      std::filesystem::path(path).extension().string());
+  const bool ok = ext == ".flac" ? readFlacData(path, wav, 0)
+                                 : readWavData(path, wav, 0);
+  if (!ok || wav.left.empty()) return nullptr;
   auto buffer = std::make_shared<SampleBuffer>();
   buffer->data = std::move(wav.left);
   buffer->dataR = std::move(wav.right);
@@ -179,6 +184,14 @@ inline bool parseSfzFile(const std::string& path, Instrument& instrument,
     z.rootKey = center.empty() ? -1 : noteNumber(center);
     z.tuneCents = static_cast<float>(number(m, "tune", 0.0));
     z.gainDb = static_cast<float>(number(m, "volume", 0.0));
+    const double frames = static_cast<double>(z.sample->data.size());
+    if (frames > 1.0) {
+      const double offset = number(m, "offset", 0.0);
+      const double end = number(m, "end", frames);
+      z.start = static_cast<float>(std::clamp(offset / frames, 0.0, 1.0));
+      z.end = static_cast<float>(std::clamp(end / frames, 0.01, 1.0));
+      if (z.end <= z.start) z.end = 1.0f;
+    }
     z.pan = std::clamp(static_cast<float>(number(m, "pan", 0.0) / 100.0),
                        -1.0f, 1.0f);
     z.seqLength = std::max(0, static_cast<int>(number(m, "seq_length", 0)));
@@ -636,13 +649,15 @@ inline bool parseLayerTag(const std::string& name, int* velocity,
   return v > 0 || rr > 0;
 }
 
-inline bool loadWavFolder(const std::string& dir, Instrument& instrument) {
+inline bool loadWavFolder(const std::string& dir, Instrument& instrument,
+                          bool roundRobin = false) {
   std::vector<std::filesystem::path> files;
   std::error_code ec;
   for (const auto& e : std::filesystem::directory_iterator(dir, ec)) {
     if (ec) break;
     if (!e.is_regular_file(ec) || ec) continue;
-    if (lowerAscii(e.path().extension().string()) == ".wav") {
+    const std::string ext = lowerAscii(e.path().extension().string());
+    if (ext == ".wav" || ext == ".flac") {
       files.push_back(e.path());
     }
   }
@@ -674,7 +689,19 @@ inline bool loadWavFolder(const std::string& dir, Instrument& instrument) {
       break;
     }
   }
-  if (tagged) {
+  if (roundRobin) {
+    for (size_t i = 0; i < entries.size(); ++i) {
+      Zone z;
+      z.sample = entries[i].buffer;
+      z.lokey = 0;
+      z.hikey = 127;
+      z.lovel = 0;
+      z.hivel = 127;
+      z.seqLength = static_cast<int>(entries.size());
+      z.seqPosition = static_cast<int>(i) + 1;
+      instrument.zones.push_back(std::move(z));
+    }
+  } else if (tagged) {
     int maxVel = 1;
     std::map<int, std::vector<int>> rrByVel;
     for (const auto& e : entries) {
@@ -721,7 +748,7 @@ inline bool loadWavFolder(const std::string& dir, Instrument& instrument) {
 }
 
 inline std::shared_ptr<const Instrument> loadInstrument(
-    const std::string& path) noexcept {
+    const std::string& path, bool roundRobin = false) noexcept {
   if (path.empty()) return nullptr;
   auto instrument = std::make_shared<Instrument>();
   const std::string ext = lowerAscii(
@@ -731,7 +758,7 @@ inline std::shared_ptr<const Instrument> loadInstrument(
     ok = parseSfzFile(path, *instrument);
   } else if (ext == ".sf2") {
     ok = parseSf2File(path, *instrument);
-  } else if (ext == ".wav") {
+  } else if (ext == ".wav" || ext == ".flac") {
     auto b = loadWavBuffer(path);
     if (b) {
       Zone z;
@@ -741,15 +768,118 @@ inline std::shared_ptr<const Instrument> loadInstrument(
       z.lovel = 0;
       z.hivel = 127;
       instrument->zones.push_back(std::move(z));
-      instrument->type = "wav";
+      instrument->type = ext == ".flac" ? "flac" : "wav";
       instrument->path = path;
       instrument->name = std::filesystem::path(path).filename().string();
       ok = true;
     }
   } else if (std::filesystem::is_directory(path)) {
-    ok = loadWavFolder(path, *instrument);
+    ok = loadWavFolder(path, *instrument, roundRobin);
   }
   return ok ? instrument : nullptr;
+}
+
+inline std::shared_ptr<Instrument> sliceInstrument(
+    std::shared_ptr<const SampleBuffer> sample, int hits,
+    const std::string& name) {
+  if (!sample || sample->data.empty() || hits < 1) return nullptr;
+  const int n = static_cast<int>(sample->data.size());
+  const int sr = sample->sampleRate > 0 ? sample->sampleRate : 48000;
+  const int win = std::max(8, sr / 500);
+  std::vector<float> env;
+  for (int i = 0; i < n; i += win) {
+    float peak = 0.0f;
+    const int end = std::min(n, i + win);
+    for (int j = i; j < end; ++j) {
+      peak = std::max(peak, std::fabs(sample->data[static_cast<size_t>(j)]));
+    }
+    env.push_back(peak);
+  }
+  float maxEnv = 0.0f;
+  for (float v : env) maxEnv = std::max(maxEnv, v);
+  const float threshold = maxEnv * 0.28f;
+  const int minGapWindows = std::max(1, (sr / 12) / win);  // ~80 ms
+  std::vector<int> onsets;
+  bool armed = true;
+  for (size_t i = 0; i < env.size(); ++i) {
+    if (env[i] < threshold) {
+      if (i > 0 && env[i] < env[i - 1]) armed = true;
+      continue;
+    }
+    if (!armed) continue;
+    const bool rising = i == 0 || env[i] >= env[i - 1];
+    if (!rising) continue;
+    const int pos = static_cast<int>(i) * win;
+    if (onsets.empty() || pos - onsets.back() >= minGapWindows * win) {
+      onsets.push_back(pos);
+      armed = false;
+      if (static_cast<int>(onsets.size()) >= hits) break;
+    }
+  }
+  if (static_cast<int>(onsets.size()) < hits) {
+    onsets.clear();
+    for (int i = 0; i < hits; ++i) {
+      onsets.push_back(static_cast<int>((static_cast<int64_t>(n) * i) / hits));
+    }
+  }
+  auto instrument = std::make_shared<Instrument>();
+  instrument->name = name.empty() ? sample->name + " slices" : name;
+  instrument->type = "sfz";
+  for (int i = 0; i < hits; ++i) {
+    const int onset = onsets[static_cast<size_t>(i)];
+    const int next = i + 1 < hits ? onsets[static_cast<size_t>(i + 1)] : n;
+    int start = std::max(0, onset - static_cast<int>(0.005f * sr));
+    int end = std::min(n, std::max(onset + static_cast<int>(0.02f * sr),
+                                   next - static_cast<int>(0.003f * sr)));
+    if (end <= start + 8) end = std::min(n, start + static_cast<int>(0.05f * sr));
+    if (end <= start + 8) continue;
+    Zone z;
+    z.sample = sample;
+    z.lokey = 0;
+    z.hikey = 127;
+    z.lovel = 0;
+    z.hivel = 127;
+    z.start = static_cast<float>(start) / static_cast<float>(std::max(1, n - 1));
+    z.end = static_cast<float>(end) / static_cast<float>(std::max(1, n));
+    z.seqLength = hits;
+    z.seqPosition = i + 1;
+    instrument->zones.push_back(std::move(z));
+  }
+  return instrument->zones.empty() ? nullptr : instrument;
+}
+
+inline bool saveInstrumentSfz(const std::string& path,
+                              const Instrument& instrument) {
+  std::ofstream out(path, std::ios::trunc);
+  if (!out) return false;
+  out << "// Generated by Drum Suite\n";
+  out << "<control> default_path=.\n\n";
+  for (const Zone& z : instrument.zones) {
+    if (!z.sample) continue;
+    const size_t frames = z.sample->data.size();
+    out << "<region> sample=\"" << z.sample->path << "\"";
+    out << " lokey=" << z.lokey << " hikey=" << z.hikey;
+    out << " lovel=" << z.lovel << " hivel=" << z.hivel;
+    if (z.rootKey >= 0) out << " pitch_keycenter=" << z.rootKey;
+    if (z.tuneCents != 0.0f) out << " tune=" << z.tuneCents;
+    if (z.gainDb != 0.0f) out << " volume=" << z.gainDb;
+    if (z.pan != 0.0f) out << " pan=" << (z.pan * 100.0f);
+    if (z.seqLength > 1) {
+      out << " seq_length=" << z.seqLength
+          << " seq_position=" << z.seqPosition;
+    }
+    if (z.group != 0) out << " group=" << z.group;
+    if (z.offBy != 0) out << " off_by=" << z.offBy;
+    if (z.loop) out << " loop_mode=loop_continuous";
+    if (frames > 1) {
+      const long offset = std::lround(z.start * (frames - 1));
+      const long end = std::lround(z.end * frames);
+      if (offset > 0) out << " offset=" << offset;
+      if (end < static_cast<long>(frames)) out << " end=" << end;
+    }
+    out << "\n";
+  }
+  return static_cast<bool>(out);
 }
 
 } // namespace drum

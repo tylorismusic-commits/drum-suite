@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0-alpha.7 — 2026-11-18
+
+- FLAC support for single samples, WAV folders and SFZ references.
+- Recursive sample browser: folders, `..`, and per-folder file lists.
+- Zone map editor: per-zone start/end, velocity range, round-robin position and
+  length, root note; edits persist to `_drum_map.sfz`.
+- FOLDER VEL / FOLDER RR map the current folder as velocity layers or round
+  robins.
+- SLICE x4 detects four hits and maps them as round robins.
+- Audio gate triggers are edge-detected; Transient/Always no longer retrigger
+  every sample.
+- MIDI ghost velocity no longer overwrites the Ghost amount knob; it scales the
+  ghost window separately.
+
 ## 0.9.0-alpha.6 — 2026-11-18
 
 - Drag and drop: WAV, SFZ, SF2 files and folders are copied into

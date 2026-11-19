@@ -16,6 +16,7 @@ if(NOT EXISTS "${HEARTH_DSP_DIR}/include/hdsp/hdsp.hpp")
   message(FATAL_ERROR "hearth-dsp not found at ${HEARTH_DSP_DIR}")
 endif()
 include_directories("${HEARTH_DSP_DIR}/include")
+include_directories("${CMAKE_SOURCE_DIR}/third_party/dr_flac")
 
 enable_testing()
 
@@ -34,7 +35,7 @@ pkg_check_modules(CAIRO REQUIRED IMPORTED_TARGET cairo)
 pkg_check_modules(FREETYPE REQUIRED IMPORTED_TARGET freetype2)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 
-set(DRUM_UI_SOURCES src/ui/panel.cpp)
+set(DRUM_UI_SOURCES src/ui/panel.cpp src/dsp/flac.cpp)
 
 # ---------------------------------------------------------------------------
 # CLAP plugin: three pages, one X11/Cairo editor.
@@ -75,7 +76,7 @@ install(FILES ${DRUM_RESOURCE_FILES}
 # ---------------------------------------------------------------------------
 # Tests and tools
 # ---------------------------------------------------------------------------
-add_executable(drum_instrument_test test/test_instrument.cpp)
+add_executable(drum_instrument_test test/test_instrument.cpp src/dsp/flac.cpp)
 target_include_directories(drum_instrument_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_instrument_test PRIVATE Threads::Threads)
 target_compile_features(drum_instrument_test PRIVATE cxx_std_17)

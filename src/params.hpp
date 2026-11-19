@@ -565,6 +565,7 @@ public:
   std::atomic<float> compHistory[kScopeSize];
   std::atomic<int> compHistoryHead;
   std::atomic<uint32_t> midiGhostTrigger{0};
+  std::atomic<float> midiGhostVelocity{1.0f};
   std::atomic<uint32_t> midiSampleTrigger{0};
   std::atomic<int> midiSampleNote{36};
   std::atomic<int> midiSampleVelocity{100};
@@ -656,6 +657,7 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.ghostNote = static_cast<int>(s.get(P_GHOST_NOTE) + 0.5);
   c.ghostCc = static_cast<int>(s.get(P_GHOST_CC) + 0.5);
   c.ghostTrigger = static_cast<int>(s.takeGhostTrigger());
+  c.ghostVelocity = s.midiGhostVelocity.load(std::memory_order_relaxed);
   c.sampleOn = s.get(P_SAMPLE_ON) > 0.5;
   c.sampleLevel = static_cast<float>(s.get(P_SAMPLE_LEVEL));
   c.sampleDirect = static_cast<float>(s.get(P_SAMPLE_DIRECT));

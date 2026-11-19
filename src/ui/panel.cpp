@@ -115,7 +115,7 @@ std::vector<std::string> listSampleFiles(const std::string& dir) {
     std::string name = entry.path().filename().string();
     std::string ext = entry.path().extension().string();
     for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (ext == ".wav" || ext == ".sfz" || ext == ".sf2") {
+    if (ext == ".wav" || ext == ".flac" || ext == ".sfz" || ext == ".sf2") {
       names.push_back(name);
     }
   }
@@ -216,6 +216,27 @@ int copyDirectoryContents(const std::filesystem::path& src,
     ec.clear();
   }
   return copied;
+}
+
+std::vector<std::string> listSampleDirs(const std::string& dir) {
+  std::vector<std::string> names;
+  std::error_code ec;
+  if (!std::filesystem::is_directory(dir, ec)) return names;
+  for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+    if (ec) break;
+    if (!entry.is_directory(ec) || ec) continue;
+    names.push_back(entry.path().filename().string());
+  }
+  std::sort(names.begin(), names.end());
+  return names;
+}
+
+bool samePath(const std::string& a, const std::string& b) {
+  std::error_code ec;
+  const auto ca = std::filesystem::weakly_canonical(a, ec);
+  if (ec) return a == b;
+  const auto cb = std::filesystem::weakly_canonical(b, ec);
+  return !ec && ca == cb;
 }
 
 double nowMs() {
@@ -594,6 +615,14 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
       load.h = 26;
       load.label = "LOAD ALL WAVS";
       widgets_.push_back(load);
+      Widget zones{};
+      zones.kind = Kind::Zones;
+      zones.x = 610;
+      zones.y = 182;
+      zones.w = 100;
+      zones.h = 26;
+      zones.label = "ZONES";
+      widgets_.push_back(zones);
     }
     pill(P_SAMPLE_REVERSE, 540, 610, 100, 24, "REVERSE");
     pill(P_SAMPLE_CHOKE, 660, 610, 100, 24, "CHOKE");
@@ -748,11 +777,45 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
                         bool fine) {
   (void)fine;
   if (handlePresetClick(shared, state, x, y)) return true;
-  // Sample file list.
+  if (state.page == 1 && state.sampleMode != 0) {
+    return handleZoneOverlay(shared, state, x, y);
+  }
+  // Sample browser: directories first, then files.
   if (state.page == 1 && x >= 100 && x <= 480 && y >= 262 && y <= 480) {
     const int row = static_cast<int>((y - 262) / 23) + state.sampleScroll;
-    if (row >= 0 && row < static_cast<int>(state.sampleFiles.size())) {
-      loadSample(shared, state, sampleDir() + "/" + state.sampleFiles[row]);
+    const bool atRoot = samePath(state.sampleDirPath, sampleDir());
+    int index = row;
+    if (!atRoot) {
+      if (index == 0) {
+        std::filesystem::path parent =
+            std::filesystem::path(state.sampleDirPath).parent_path();
+        if (isInside(parent.string(), sampleDir())) {
+          state.sampleDirPath = parent.string();
+        } else {
+          state.sampleDirPath = sampleDir();
+        }
+        state.sampleScroll = 0;
+        state.sampleScanTicks = 59;
+        return true;
+      }
+      --index;
+    }
+    const int dirs = static_cast<int>(state.sampleDirs.size());
+    if (index >= 0 && index < dirs) {
+      state.sampleDirPath =
+          (std::filesystem::path(state.sampleDirPath) /
+           state.sampleDirs[static_cast<size_t>(index)])
+              .string();
+      state.sampleScroll = 0;
+      state.sampleScanTicks = 59;
+      return true;
+    }
+    index -= dirs;
+    if (index >= 0 && index < static_cast<int>(state.sampleFiles.size())) {
+      loadSample(shared, state,
+                 (std::filesystem::path(state.sampleDirPath) /
+                  state.sampleFiles[static_cast<size_t>(index)])
+                     .string());
       return true;
     }
   }
@@ -812,7 +875,8 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
         state.presetDirty = true;
         return true;
       case Kind::LoadFolder: {
-        auto instrument = loadInstrumentFile(sampleDir());
+        auto instrument = loadInstrumentFile(
+            state.sampleDirPath.empty() ? sampleDir() : state.sampleDirPath);
         if (instrument) {
           shared.setInstrument(std::move(instrument));
           shared.set(P_SAMPLE_ON, 1.0);
@@ -820,6 +884,11 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
         }
         return true;
       }
+      case Kind::Zones:
+        state.sampleMode = state.sampleMode ? 0 : 1;
+        state.zoneSelected = 0;
+        state.zoneScroll = 0;
+        return true;
       case Kind::Toggle: {
         const double f = (y - w.y) / w.h;
         shared.set(w.param, f < 0.5 ? 1.0 : 0.0);
@@ -833,6 +902,15 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
 
 bool Panel::pointerMove(Shared& shared, PanelState& state, double x, double y,
                         bool fine) {
+  if (zoneDrag_ >= 0) {
+    const double x1 = 110.0, x2 = 540.0, w = 380.0;
+    const int field = zoneDrag_;
+    const bool right = field == 1 || field == 3 || field == 5;
+    const double left = right ? x2 : x1;
+    const double f = std::clamp((x - left) / w, 0.0, 1.0);
+    setZoneValue(shared, state, field, f);
+    return true;
+  }
   (void)x;
   if (dragParam_ < 0) return false;
   const uint32_t param = static_cast<uint32_t>(dragParam_);
@@ -847,10 +925,21 @@ bool Panel::pointerMove(Shared& shared, PanelState& state, double x, double y,
   return true;
 }
 
-void Panel::pointerUp() { dragParam_ = -1; }
+void Panel::pointerUp() {
+  dragParam_ = -1;
+  zoneDrag_ = -1;
+}
 
 bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
                   double dy) {
+  if (state.page == 1 && state.sampleMode != 0) {
+    const auto instrument = shared.instrument();
+    const int count = instrument ? static_cast<int>(instrument->zones.size()) : 0;
+    const int maxScroll = std::max(0, count - 12);
+    state.zoneScroll =
+        std::min(maxScroll, std::max(0, state.zoneScroll - (dy > 0 ? 1 : -1)));
+    return true;
+  }
   if (state.presetOpen && x >= kPresetX && x <= kPresetX + kPresetW &&
       y >= kListY && y <= kListY + kListVisible * kListRow + 10) {
     int rows = kPresetCount;
@@ -866,8 +955,11 @@ bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
     return true;
   }
   if (state.page == 1 && x >= 100 && x <= 480 && y >= 220 && y <= 650) {
-    const int maxScroll =
-        std::max(0, static_cast<int>(state.sampleFiles.size()) - 9);
+    const bool atRoot = samePath(state.sampleDirPath, sampleDir());
+    const int rows = static_cast<int>(state.sampleFiles.size()) +
+                     static_cast<int>(state.sampleDirs.size()) +
+                     (atRoot ? 0 : 1);
+    const int maxScroll = std::max(0, rows - 9);
     state.sampleScroll =
         std::min(maxScroll, std::max(0, state.sampleScroll - (dy > 0 ? 1 : -1)));
     return true;
@@ -925,8 +1017,14 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   }
   if (++state.sampleScanTicks >= 60) {
     state.sampleScanTicks = 0;
-    state.sampleFiles = listSampleFiles(sampleDir());
-    const int maxScroll = std::max(0, static_cast<int>(state.sampleFiles.size()) - 9);
+    if (state.sampleDirPath.empty()) state.sampleDirPath = sampleDir();
+    state.sampleFiles = listSampleFiles(state.sampleDirPath);
+    state.sampleDirs = listSampleDirs(state.sampleDirPath);
+    const bool atRoot = samePath(state.sampleDirPath, sampleDir());
+    const int rows = static_cast<int>(state.sampleFiles.size()) +
+                     static_cast<int>(state.sampleDirs.size()) +
+                     (atRoot ? 0 : 1);
+    const int maxScroll = std::max(0, rows - 9);
     state.sampleScroll = std::min(std::max(state.sampleScroll, 0), maxScroll);
   }
   const int head = shared.scopeHead.load(std::memory_order_relaxed) &
@@ -984,6 +1082,9 @@ void Panel::draw(cairo_t* cr, Shared& shared, const PanelState& state) {
     text(cr, value.c_str(), kPanelWidth * 0.5, 709, 15, 1, 0.98, 0.80, 0.32);
   }
 
+  if (state.page == 1 && state.sampleMode != 0) {
+    drawZoneOverlay(cr, shared, state);
+  }
   if (editing_) drawTextEntry(cr, shared);
   if (state.presetOpen) drawPresetList(cr, shared, state);
 
@@ -1176,6 +1277,298 @@ void Panel::updateWaveCache(const std::shared_ptr<const SampleBuffer>& sample,
   }
 }
 
+void Panel::saveZoneMap(Shared& shared, PanelState& state) {
+  const auto instrument = shared.instrument();
+  if (!instrument || instrument->zones.empty()) return;
+  const std::string path = sampleDir() + "/_drum_map.sfz";
+  if (!saveInstrumentSfz(path, *instrument)) return;
+  auto copy = std::make_shared<Instrument>(*instrument);
+  copy->path = path;
+  copy->type = "sfz";
+  copy->name = "User Map";
+  shared.setInstrument(copy);
+  state.presetDirty = true;
+}
+
+void Panel::loadFolderMap(Shared& shared, PanelState& state,
+                          bool roundRobin) {
+  const std::string dir =
+      state.sampleDirPath.empty() ? sampleDir() : state.sampleDirPath;
+  auto instrument = loadInstrument(dir, roundRobin);
+  if (!instrument) return;
+  shared.setInstrument(std::move(instrument));
+  shared.set(P_SAMPLE_ON, 1.0);
+  state.zoneSelected = 0;
+  state.zoneScroll = 0;
+  state.presetDirty = true;
+  saveZoneMap(shared, state);
+}
+
+void Panel::sliceSelectedZone(Shared& shared, PanelState& state) {
+  const auto instrument = shared.instrument();
+  if (!instrument || instrument->zones.empty()) return;
+  const int index = std::clamp(state.zoneSelected, 0,
+                               static_cast<int>(instrument->zones.size()) - 1);
+  const auto sample = instrument->zones[static_cast<size_t>(index)].sample;
+  auto sliced = sliceInstrument(sample, 4, sample ? sample->name + " slices" : "");
+  if (!sliced) return;
+  shared.setInstrument(std::move(sliced));
+  state.zoneSelected = 0;
+  state.zoneScroll = 0;
+  state.presetDirty = true;
+  saveZoneMap(shared, state);
+}
+
+void Panel::setZoneValue(Shared& shared, PanelState& state, int field,
+                         double value) {
+  const auto instrument = shared.instrument();
+  if (!instrument || instrument->zones.empty()) return;
+  const int index = std::clamp(state.zoneSelected, 0,
+                               static_cast<int>(instrument->zones.size()) - 1);
+  auto copy = std::make_shared<Instrument>(*instrument);
+  Zone& z = copy->zones[static_cast<size_t>(index)];
+  const double f = std::clamp(value, 0.0, 1.0);
+  switch (field) {
+    case 0:
+      z.start = static_cast<float>(std::min(f, z.end - 0.005));
+      break;
+    case 1:
+      z.end = static_cast<float>(std::max(f, z.start + 0.005));
+      break;
+    case 2:
+      z.lovel = std::clamp(static_cast<int>(std::lround(f * 127.0)), 0, 127);
+      if (z.lovel > z.hivel) z.hivel = z.lovel;
+      break;
+    case 3:
+      z.hivel = std::clamp(static_cast<int>(std::lround(f * 127.0)), 0, 127);
+      if (z.hivel < z.lovel) z.lovel = z.hivel;
+      break;
+    case 4: {
+      const int len = std::max(1, z.seqLength);
+      z.seqPosition = std::clamp(
+          static_cast<int>(std::lround(f * (len - 1))) + 1, 1, len);
+      break;
+    }
+    case 5:
+      z.seqLength = std::clamp(static_cast<int>(std::lround(f * 16.0)), 0, 16);
+      if (z.seqLength > 0) {
+        z.seqPosition = std::clamp(z.seqPosition, 1, z.seqLength);
+      }
+      break;
+    case 6:
+      z.rootKey =
+          std::clamp(static_cast<int>(std::lround(f * 127.0)), 0, 127);
+      break;
+    default:
+      break;
+  }
+  if (!z.sample->path.empty()) {
+    const std::string path = sampleDir() + "/_drum_map.sfz";
+    if (saveInstrumentSfz(path, *copy)) {
+      copy->path = path;
+      copy->type = "sfz";
+      copy->name = "User Map";
+    }
+  }
+  shared.setInstrument(copy);
+  state.presetDirty = true;
+}
+
+void Panel::drawZoneOverlay(cairo_t* cr, Shared& shared,
+                            const PanelState& state) const {
+  const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
+  const Skin skin = skinFor(drum);
+  const auto instrument = shared.instrument();
+  const int count = instrument ? static_cast<int>(instrument->zones.size()) : 0;
+
+  cairo_set_source_rgba(cr, 0.02, 0.02, 0.02, 0.86);
+  cairo_rectangle(cr, 0, 68, kPanelWidth, kPanelHeight - 68);
+  cairo_fill(cr);
+  roundRect(cr, 60, 80, 920, 570, 6);
+  setRgb(cr, Rgb{0.075, 0.075, 0.082}, 0.98);
+  cairo_fill(cr);
+  setRgb(cr, skin.btnOn, 0.65);
+  cairo_set_line_width(cr, 1.2);
+  roundRect(cr, 60.5, 80.5, 919, 569, 6);
+  cairo_stroke(cr);
+
+  text(cr, "ZONE MAP", 80, 116, 18, 0, skin.btnTextOn.r, skin.btnTextOn.g,
+       skin.btnTextOn.b);
+  text(cr, "Each row is a zone: key/velocity range, round robin, start and end.",
+       220, 112, 10, 0, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+
+  auto button = [&](double x, double w, const char* label) {
+    roundRect(cr, x, 124, w, 24, 4);
+    setRgb(cr, Rgb{0.16, 0.19, 0.23});
+    cairo_fill(cr);
+    text(cr, label, x + w * 0.5, 140, 8.0, 1, 0.84, 0.88, 0.92);
+  };
+  button(80, 100, "FOLDER VEL");
+  button(190, 100, "FOLDER RR");
+  button(300, 100, "SLICE x4");
+  button(410, 90, "REMOVE");
+  button(510, 80, "SAVE");
+  button(860, 100, "CLOSE");
+
+  const double tx = 80, ty = 160, tw = 880;
+  const int visible = 12;
+  const int maxScroll = std::max(0, count - visible);
+  const int scroll = std::clamp(state.zoneScroll, 0, maxScroll);
+  roundRect(cr, tx, ty, tw, 24 + visible * 22 + 6, 4);
+  setRgb(cr, {0.03, 0.035, 0.04}, 0.95);
+  cairo_fill(cr);
+  text(cr, "#", tx + 10, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "SAMPLE", tx + 40, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "VEL", tx + 370, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "RR", tx + 470, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "START", tx + 550, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "END", tx + 650, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "ROOT", tx + 750, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  for (int row = 0; row < visible; ++row) {
+    const int index = scroll + row;
+    if (index >= count) break;
+    const double y = ty + 24 + row * 22;
+    const Zone& z = instrument->zones[static_cast<size_t>(index)];
+    if (index == state.zoneSelected) {
+      roundRect(cr, tx + 4, y + 1, tw - 8, 20, 3);
+      setRgb(cr, skin.btnOn, 0.22);
+      cairo_fill(cr);
+    }
+    char buf[128];
+    std::snprintf(buf, sizeof(buf), "%02d", index + 1);
+    text(cr, buf, tx + 10, y + 15, 9, 0, 0.60, 0.64, 0.70);
+    text(cr, clippedName(z.sample ? z.sample->name : "-", 36).c_str(),
+         tx + 40, y + 15, 9, 0, 0.86, 0.88, 0.90);
+    std::snprintf(buf, sizeof(buf), "%d-%d", z.lovel, z.hivel);
+    text(cr, buf, tx + 370, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    if (z.seqLength > 1) {
+      std::snprintf(buf, sizeof(buf), "%d/%d", z.seqPosition, z.seqLength);
+    } else {
+      std::snprintf(buf, sizeof(buf), "-");
+    }
+    text(cr, buf, tx + 470, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    std::snprintf(buf, sizeof(buf), "%.1f%%", z.start * 100.0f);
+    text(cr, buf, tx + 550, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    std::snprintf(buf, sizeof(buf), "%.1f%%", z.end * 100.0f);
+    text(cr, buf, tx + 650, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    if (z.rootKey >= 0) {
+      std::snprintf(buf, sizeof(buf), "%s", noteName(z.rootKey).c_str());
+    } else {
+      std::snprintf(buf, sizeof(buf), "-");
+    }
+    text(cr, buf, tx + 750, y + 15, 9, 0, 0.76, 0.80, 0.84);
+  }
+
+  const Zone* zone = nullptr;
+  if (instrument && !instrument->zones.empty()) {
+    const int index = std::clamp(state.zoneSelected, 0,
+                                 static_cast<int>(instrument->zones.size()) - 1);
+    zone = &instrument->zones[static_cast<size_t>(index)];
+  }
+  const char* labels[7] = {"START", "END", "VEL LOW", "VEL HIGH",
+                           "RR POS", "RR LENGTH", "ROOT"};
+  const double xs[2] = {110, 540};
+  const double ys[4] = {500, 540, 580, 620};
+  auto slider = [&](int field, double x, double y, const char* label,
+                    double f, const char* value) {
+    text(cr, label, x, y - 6, 8.0, 0, 0.60, 0.64, 0.70);
+    roundRect(cr, x, y, 380, 8, 4);
+    setRgb(cr, Rgb{0.12, 0.14, 0.17});
+    cairo_fill(cr);
+    roundRect(cr, x, y, 380 * std::clamp(f, 0.0, 1.0), 8, 4);
+    setRgb(cr, skin.btnOn, 0.9);
+    cairo_fill(cr);
+    text(cr, value, x + 390, y + 8, 9, 2, 0.86, 0.88, 0.90);
+  };
+  char value[32];
+  if (zone) {
+    std::snprintf(value, sizeof(value), "%.1f%%", zone->start * 100.0f);
+    slider(0, xs[0], ys[0], labels[0], zone->start, value);
+    std::snprintf(value, sizeof(value), "%.1f%%", zone->end * 100.0f);
+    slider(1, xs[1], ys[0], labels[1], zone->end, value);
+    std::snprintf(value, sizeof(value), "%d", zone->lovel);
+    slider(2, xs[0], ys[1], labels[2], zone->lovel / 127.0f, value);
+    std::snprintf(value, sizeof(value), "%d", zone->hivel);
+    slider(3, xs[1], ys[1], labels[3], zone->hivel / 127.0f, value);
+    std::snprintf(value, sizeof(value), "%d / %d", zone->seqPosition,
+                  std::max(1, zone->seqLength));
+    slider(4, xs[0], ys[2], labels[4],
+           zone->seqLength > 1
+               ? (zone->seqPosition - 1) / static_cast<double>(zone->seqLength - 1)
+               : 0.0,
+           value);
+    std::snprintf(value, sizeof(value), "%d", zone->seqLength);
+    slider(5, xs[1], ys[2], labels[5], zone->seqLength / 16.0, value);
+    std::snprintf(value, sizeof(value), "%s",
+                  zone->rootKey >= 0 ? noteName(zone->rootKey).c_str() : "-");
+    slider(6, xs[0], ys[3], labels[6],
+           zone->rootKey >= 0 ? zone->rootKey / 127.0 : 0.0, value);
+  }
+  if (count > visible) {
+    text(cr, "WHEEL TO SCROLL", 900, 452, 8.0, 2, 0.55, 0.60, 0.66);
+  }
+}
+
+bool Panel::handleZoneOverlay(Shared& shared, PanelState& state, double x,
+                              double y) {
+  if (y >= 124 && y <= 148) {
+    if (x >= 80 && x <= 180) loadFolderMap(shared, state, false);
+    else if (x >= 190 && x <= 290) loadFolderMap(shared, state, true);
+    else if (x >= 300 && x <= 400) sliceSelectedZone(shared, state);
+    else if (x >= 410 && x <= 500) {
+      const auto instrument = shared.instrument();
+      if (instrument && !instrument->zones.empty()) {
+        auto copy = std::make_shared<Instrument>(*instrument);
+        const int index = std::clamp(
+            state.zoneSelected, 0, static_cast<int>(copy->zones.size()) - 1);
+        copy->zones.erase(copy->zones.begin() + index);
+        if (copy->zones.empty()) {
+          shared.setInstrument(nullptr);
+        } else {
+          state.zoneSelected = std::min(
+              index, static_cast<int>(copy->zones.size()) - 1);
+          shared.setInstrument(copy);
+          saveZoneMap(shared, state);
+        }
+      }
+    } else if (x >= 510 && x <= 590) {
+      saveZoneMap(shared, state);
+    } else if (x >= 860 && x <= 960) {
+      state.sampleMode = 0;
+    }
+    return true;
+  }
+  if (x >= 80 && x <= 960 && y >= 160 && y <= 160 + 24 + 12 * 22) {
+    if (y >= 184) {
+      const int row = static_cast<int>((y - 184) / 22);
+      const auto instrument = shared.instrument();
+      const int count = instrument ? static_cast<int>(instrument->zones.size()) : 0;
+      const int maxScroll = std::max(0, count - 12);
+      const int index = std::clamp(state.zoneScroll, 0, maxScroll) + row;
+      if (index >= 0 && index < count) {
+        state.zoneSelected = index;
+        state.zoneScroll = std::clamp(state.zoneScroll, 0, maxScroll);
+      }
+    }
+    return true;
+  }
+  const double xs[2] = {110, 540};
+  const double ys[4] = {500, 540, 580, 620};
+  for (int field = 0; field < 7; ++field) {
+    const int col = field == 1 || field == 3 || field == 5 ? 1 : 0;
+    const int row = field == 1 ? 0 : field == 3 ? 1 : field == 5 ? 2 : field == 6 ? 3 : (field == 0 ? 0 : field == 2 ? 1 : 2);
+    const double sx = xs[col];
+    const double sy = ys[row];
+    if (y >= sy - 18 && y <= sy + 18 && x >= sx - 8 && x <= sx + 400) {
+      zoneDrag_ = field;
+      const double f = std::clamp((x - sx) / 380.0, 0.0, 1.0);
+      setZoneValue(shared, state, field, f);
+      return true;
+    }
+  }
+  return true;
+}
+
 void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
                            const PanelState& state) const {
   const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
@@ -1290,40 +1683,64 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
 
   text(cr, "SAMPLES", bx + 14, by + 18, 10, 0, skin.legend.r, skin.legend.g,
        skin.legend.b);
-  text(cr, clippedName(prettyPath(sampleDir()), 34).c_str(), bx + bw - 14,
-       by + 18, 8.5, 2,
+  text(cr, clippedName(prettyPath(state.sampleDirPath), 34).c_str(),
+       bx + bw - 14, by + 18, 8.5, 2,
        skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
   setRgb(cr, skin.legendDim, 0.25);
   cairo_move_to(cr, bx + 12, by + 26.5);
   cairo_line_to(cr, bx + bw - 12, by + 26.5);
   cairo_stroke(cr);
 
-  if (state.sampleFiles.empty()) {
-    text(cr, "NO WAV / SFZ / SF2 FILES IN THIS FOLDER", bx + bw * 0.5, by + 92, 10, 1,
-         skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+  const bool atRoot = samePath(state.sampleDirPath, sampleDir());
+  const int dirCount = static_cast<int>(state.sampleDirs.size());
+  const int fileCount = static_cast<int>(state.sampleFiles.size());
+  const int totalRows = dirCount + fileCount + (atRoot ? 0 : 1);
+  if (totalRows == 0) {
+    text(cr, "NO WAV / FLAC / SFZ / SF2 FILES IN THIS FOLDER",
+         bx + bw * 0.5, by + 92, 10, 1, skin.legendDim.r, skin.legendDim.g,
+         skin.legendDim.b);
     text(cr, "THE LIST REFRESHES AUTOMATICALLY", bx + bw * 0.5, by + 112, 8.5,
          1, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
   } else {
-    const std::string loaded =
-        instrument ? std::filesystem::path(instrument->path).filename().string()
-                   : std::string();
+    const std::string loadedPath = instrument ? instrument->path : std::string();
     for (int i = 0; i < 9; ++i) {
       const int index = state.sampleScroll + i;
-      if (index >= static_cast<int>(state.sampleFiles.size())) break;
-      const std::string& name = state.sampleFiles[static_cast<size_t>(index)];
-      const bool selected = name == loaded;
+      if (index >= totalRows) break;
       const double rowY = 262 + i * 23;
+      int item = index;
+      std::string label;
+      bool isDir = false;
+      bool selected = false;
+      if (!atRoot && item == 0) {
+        label = "..";
+        isDir = true;
+      } else {
+        item -= atRoot ? 0 : 1;
+        if (item < dirCount) {
+          label = state.sampleDirs[static_cast<size_t>(item)] + "/";
+          isDir = true;
+        } else {
+          item -= dirCount;
+          if (item < 0 || item >= fileCount) continue;
+          const std::string& name =
+              state.sampleFiles[static_cast<size_t>(item)];
+          label = name;
+          const std::filesystem::path path =
+              std::filesystem::path(state.sampleDirPath) / name;
+          selected = !loadedPath.empty() && samePath(loadedPath, path.string());
+        }
+      }
       if (selected) {
         roundRect(cr, bx + 8, rowY, bw - 16, 21, 3);
         setRgb(cr, skin.btnOn, 0.20);
         cairo_fill(cr);
       }
-      text(cr, clippedName(name, 44).c_str(), bx + 16, rowY + 15, 10, 0,
-           selected ? skin.btnTextOn.r : skin.legend.r,
-           selected ? skin.btnTextOn.g : skin.legend.g,
-           selected ? skin.btnTextOn.b : skin.legend.b);
+      text(cr, clippedName(label, 44).c_str(), bx + 16, rowY + 15, 10, 0,
+           isDir ? skin.btnOn.r : (selected ? skin.btnTextOn.r : skin.legend.r),
+           isDir ? skin.btnOn.g : (selected ? skin.btnTextOn.g : skin.legend.g),
+           isDir ? skin.btnOn.b : (selected ? skin.btnTextOn.b : skin.legend.b));
     }
-    if (static_cast<int>(state.sampleFiles.size()) > 9) {
+    if (totalRows > 9) {
       text(cr, "SCROLL TO BROWSE", bx + bw - 14, by + bh - 8, 8.5, 2,
            skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
     }
@@ -1989,6 +2406,9 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
       break;
     case Kind::LoadFolder:
       drawButton(cr, w, false, drum);
+      break;
+    case Kind::Zones:
+      drawButton(cr, w, state.sampleMode != 0, drum);
       break;
     case Kind::Toggle:
       drawToggle(cr, w, shared.get(w.param) > 0.5, drum);

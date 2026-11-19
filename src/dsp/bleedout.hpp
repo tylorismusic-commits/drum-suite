@@ -91,6 +91,7 @@ public:
     ghostHoldSamples_ = static_cast<int>(0.012f * sr_);
     if (c.ghostTrigger > 0) {
       midiGhostHold_ = std::max(midiGhostHold_, static_cast<int>(0.060f * sr_));
+      ghostScale_ = hdsp::clampf(c.ghostVelocity, 0.0f, 1.0f);
     }
     input_.setTarget(hdsp::dbToGain(c.inputDb));
     output_.setTarget(hdsp::dbToGain(c.outputDb));
@@ -111,6 +112,7 @@ public:
     bodyHold_ = 0;
     ghostHold_ = 0;
     midiGhostHold_ = 0;
+    ghostScale_ = 1.0f;
     gateOpen_ = false;
     triggerPrev_ = false;
     ghostTriggerPrev_ = false;
@@ -231,8 +233,9 @@ public:
       ghostEnv_ += (ghostTarget ? (1.0f - ghostEnv_) : (0.0f - ghostEnv_)) *
                    (ghostTarget ? ghostAttack_ : ghostRelease_);
       ghostEnv_ = flushDenormal(ghostEnv_);
-      const float ghostGain =
-          minGain_ + (1.0f - minGain_) * ghostEnv_ * ghostAmount_;
+      const float ghostGain = minGain_ + (1.0f - minGain_) * ghostEnv_ *
+                                             ghostAmount_ * ghostScale_;
+      if (midiGhostHold_ == 0 && ghostEnv_ < 0.001f) ghostScale_ = 1.0f;
       // Gate On = off is a true bypass of the gate, not a closed gate.
       float gateGain = controls_.gateOn
                            ? minGain_ + (1.0f - minGain_) * gateEnv_
@@ -353,6 +356,7 @@ private:
   float detRelease_ = 0.999f;
 
   float ghostAmount_ = 0.5f;
+  float ghostScale_ = 1.0f;
   float ghostRange_ = 0.1f;
   float ghostEnv_ = 0.0f;
   float ghostAttack_ = 0.1f;
