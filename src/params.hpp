@@ -76,6 +76,7 @@ enum ParamId : uint32_t {
   P_TRANSIENT_SUSTAIN,
   P_TRANSIENT_SENS,
   P_SAMPLE_NOTE,
+  P_SAMPLE_PHASE,
   P_COUNT
 };
 
@@ -241,6 +242,8 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      "%", {}},
     {"sample_note", "MIDI Note", "Sample", 0.0, 127.0, 36.0, true, false,
      false, nullptr, {}},
+    {"sample_phase", "Flip Phase", "Sample", 0.0, 1.0, 0.0, true, false, true,
+     nullptr, {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -672,6 +675,7 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.sampleMidiTrigger = static_cast<int>(s.takeSampleTrigger());
   c.sampleMidiNote = s.midiSampleNote.load(std::memory_order_relaxed);
   c.sampleNote = static_cast<int>(s.get(P_SAMPLE_NOTE) + 0.5);
+  c.samplePhase = s.get(P_SAMPLE_PHASE) > 0.5;
   c.sampleMidiVelocity = s.midiSampleVelocity.load(std::memory_order_relaxed);
   c.transientOn = s.get(P_TRANSIENT_ON) > 0.5;
   c.transientAttack = static_cast<float>(s.get(P_TRANSIENT_ATTACK));

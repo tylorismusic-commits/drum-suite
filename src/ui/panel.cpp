@@ -626,6 +626,7 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     }
     pill(P_SAMPLE_REVERSE, 540, 610, 100, 24, "REVERSE");
     pill(P_SAMPLE_CHOKE, 660, 610, 100, 24, "CHOKE");
+    pill(P_SAMPLE_PHASE, 780, 610, 100, 24, "FLIP PHASE");
   } else if (state.page == 2) {
     // EQ page.
     knob(P_EQ_LOW, 190, 535, 26, "LOW");

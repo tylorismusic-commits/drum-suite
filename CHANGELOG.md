@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0-alpha.8 — 2026-11-18
+
+- Added **Flip Phase** for the sample layer.
+- Fixed single-drum SFZ/SF2 instruments falling back to zone one when the
+  selected MIDI note was outside their key range. The player now picks the
+  nearest key group, preserving round robins and velocity layers.
+- Added regression tests for out-of-range round robins and phase inversion.
+
 ## 0.9.0-alpha.7 — 2026-11-18
 
 - FLAC support for single samples, WAV folders and SFZ references.

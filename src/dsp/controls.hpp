@@ -377,6 +377,7 @@ struct Controls {
   int sampleMidiTrigger = 0;
   int sampleMidiNote = 36;
   int sampleNote = 36;
+  bool samplePhase = false;
   int sampleMidiVelocity = 100;
 };
 

@@ -79,6 +79,7 @@ SFZ amplitude envelopes and filters are not implemented yet; the sample plays
 as a one-shot. Audio gate triggers are edge-detected, so a held gate fires once
 instead of retriggering every sample.
 
+- **Flip Phase** inverts the sample layer without touching the direct signal.
 - **MIDI Note** picks the note that triggers this instance. The default follows
   the drum tab using the GM map: Kick C1 (36), Snare D1 (38), Tom A1 (45),
   Hat F#1 (42), Ride D#2 (51), Room F1 (41), OH C#2 (49), Bus C1 (36).
@@ -86,7 +87,7 @@ instead of retriggering every sample.
 - **Level** and **Direct** balance the sample against the gated direct signal.
 - **Pitch** ±24 semitones, **Start** moves the playback start point (shown as
   a marker on the waveform).
-- **Reverse**, **Choke** and **Fade** shape the one-shot.
+- **Reverse**, **Choke**, **Flip Phase** and **Fade** shape the one-shot.
 - **Trigger** chooses **Gate** (Bleed Out opens), **Transient** (independent
   input onset detector), **Always** (either audio source) or **MIDI**.
 - **Sensitivity** sets the transient threshold.

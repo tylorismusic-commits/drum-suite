@@ -256,6 +256,62 @@ int main() {
     assert(m.sampleVoices <= 1);
   }
 
+  {
+    // Round robins still cycle when the selected note is outside the SFZ key
+    // range (single-drum instruments often use a fixed key).
+    auto a = std::make_shared<drum::SampleBuffer>();
+    a->data.assign(200, 0.5f);
+    a->sampleRate = 48000;
+    auto b = std::make_shared<drum::SampleBuffer>();
+    b->data.assign(200, -0.25f);
+    b->sampleRate = 48000;
+    auto inst = std::make_shared<drum::Instrument>();
+    drum::Zone za;
+    za.sample = a;
+    za.lokey = za.hikey = 40;
+    za.seqLength = 2;
+    za.seqPosition = 1;
+    inst->zones.push_back(za);
+    drum::Zone zb = za;
+    zb.sample = b;
+    zb.seqPosition = 2;
+    inst->zones.push_back(zb);
+    drum::SamplePlayer p;
+    p.prepare(48000.0f);
+    p.setInstrument(inst);
+    drum::Controls c;
+    c.sampleOn = true;
+    c.sampleLevel = 100.0f;
+    c.sampleDirect = 0.0f;
+    c.sampleChoke = false;
+    c.sampleTrigger = 3;
+    c.sampleNote = 36;
+    c.sampleMidiNote = 36;
+    c.sampleMidiVelocity = 100;
+    c.sampleFadeMs = 0.1f;
+    std::vector<float> l(300), r(300);
+    std::vector<uint8_t> gate(300, 0);
+    drum::Meters m;
+    c.sampleMidiTrigger = 1;
+    p.setControls(c);
+    p.process(l.data(), r.data(), gate.data(), 300, m);
+    const float first = l[1];
+    c.sampleMidiTrigger = 1;
+    p.setControls(c);
+    std::fill(l.begin(), l.end(), 0.0f);
+    p.process(l.data(), r.data(), gate.data(), 300, m);
+    assert(first > 0.05f && l[1] < -0.01f);
+
+    // Phase invert flips the sample layer.
+    p.setInstrument(inst);
+    c.sampleMidiTrigger = 1;
+    c.samplePhase = true;
+    p.setControls(c);
+    std::fill(l.begin(), l.end(), 0.0f);
+    p.process(l.data(), r.data(), gate.data(), 300, m);
+    assert(l[1] < -0.01f);
+  }
+
   std::printf("drum_instrument: ok\n");
   return 0;
 }

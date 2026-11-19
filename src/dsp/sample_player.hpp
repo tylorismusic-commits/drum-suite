@@ -84,6 +84,7 @@ public:
         std::max(0, pendingSize_ - 1));
     note_ = std::clamp(c.sampleNote, 0, 127);
     velocity_ = std::clamp(c.sampleMidiVelocity, 1, 127);
+    phase_ = c.samplePhase ? -1.0f : 1.0f;
     if (!on_) {
       pendingMidi_ = 0;
       if (!pending_.empty()) std::fill(pending_.begin(), pending_.end(), 0);
@@ -186,8 +187,8 @@ public:
           v.active = false;
         }
       }
-      left[i] += outL * level_;
-      right[i] += outR * level_;
+      left[i] += outL * level_ * phase_;
+      right[i] += outR * level_ * phase_;
     }
     for (const auto& v : voices_) {
       if (v.active) ++meters.sampleVoices;
@@ -282,9 +283,40 @@ private:
       matches.push_back({i, z.offBy != 0, z.group});
     }
 
-    // Melodic SFZ/SF2 files often have key ranges around middle C.  If the
-    // configured note falls outside every zone, play the first zone rather
-    // than silently producing nothing.
+    // If the configured note is outside every key range, use the closest
+    // key group instead of silently playing only the first zone.  This keeps
+    // round robins and velocity layers intact for single-drum instruments
+    // whose SFZ/SF2 key does not match the selected note.
+    if (matches.empty()) {
+      int bestDistance = 256;
+      for (const Zone& z : instrument_->zones) {
+        if (!z.sample) continue;
+        if (velocity < z.lovel || velocity > z.hivel) continue;
+        const int distance =
+            key < z.lokey ? z.lokey - key
+                          : (key > z.hikey ? key - z.hikey : 0);
+        bestDistance = std::min(bestDistance, distance);
+      }
+      if (bestDistance < 256) {
+        for (size_t i = 0; i < instrument_->zones.size(); ++i) {
+          const Zone& z = instrument_->zones[i];
+          if (!z.sample) continue;
+          if (velocity < z.lovel || velocity > z.hivel) continue;
+          const int distance =
+              key < z.lokey ? z.lokey - key
+                            : (key > z.hikey ? key - z.hikey : 0);
+          if (distance != bestDistance) continue;
+          if (zoneSeq_.size() <= i) zoneSeq_.resize(i + 1, 0);
+          ++zoneSeq_[i];
+          if (z.seqLength > 1) {
+            const int pos =
+                static_cast<int>((zoneSeq_[i] - 1) % z.seqLength) + 1;
+            if (pos != z.seqPosition) continue;
+          }
+          matches.push_back({i, z.offBy != 0, z.group});
+        }
+      }
+    }
     if (matches.empty()) {
       for (size_t i = 0; i < instrument_->zones.size(); ++i) {
         if (instrument_->zones[i].sample) {
@@ -340,6 +372,7 @@ private:
   float sr_ = 48000.0f;
   bool on_ = false;
   float level_ = 0.8f;
+  float phase_ = 1.0f;
   float direct_ = 1.0f;
   float pitch_ = 0.0f;
   float start_ = 0.0f;
