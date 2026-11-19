@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0-alpha.5 — 2026-11-18
+
+- Sample page now loads multisample instruments: WAV, SFZ, SF2/SF3 and whole
+  WAV folders.
+- 32-voice player with key/velocity ranges, round robins, choke groups,
+  stereo samples, loop points and per-zone tune/pan/volume.
+- **LOAD ALL WAVS** builds a velocity-layered instrument from the sample
+  folder; `V01`/`RR1` filename tags are honoured, otherwise files are sorted by
+  peak.
+- **MIDI Note** selects the trigger note, defaulting to the drum tab's GM note.
+  MIDI note-on filtering now uses that note; gate/transient triggers use it for
+  zone selection.
+- New standalone `tools/tci2sfz` converter: Slate Trigger TCI → SFZ + WAV with
+  velocity layers and round robins, using the MIT clean-room decoder.
+- Added instrument loader tests (SFZ, SF2, WAV folder, velocity selection) and
+  a synthetic TCI converter test.
+
 ## 0.9.0-alpha.1 — public alpha — 2026-11-17
 
 - Added a stereo-linked transient shaper before the compressor on the COMP

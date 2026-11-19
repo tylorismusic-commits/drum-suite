@@ -101,6 +101,7 @@ private:
     Bypass,
     Ghost,
     Guide,
+    LoadFolder,
   };
 
   struct Widget {

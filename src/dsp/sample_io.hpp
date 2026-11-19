@@ -8,9 +8,16 @@
 #include <vector>
 
 #include "controls.hpp"
+#include "instrument.hpp"
 #include "wav.hpp"
 
 namespace drum {
+
+// Loads a WAV, SFZ, SF2/3 or a folder of WAVs as a multisample instrument.
+inline std::shared_ptr<const Instrument> loadInstrumentFile(
+    const std::string& path) noexcept {
+  return loadInstrument(path);
+}
 
 inline std::shared_ptr<const SampleBuffer> loadSampleFile(
     const std::string& path) noexcept {

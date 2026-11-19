@@ -75,6 +75,23 @@ install(FILES ${DRUM_RESOURCE_FILES}
 # ---------------------------------------------------------------------------
 # Tests and tools
 # ---------------------------------------------------------------------------
+add_executable(drum_instrument_test test/test_instrument.cpp)
+target_include_directories(drum_instrument_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(drum_instrument_test PRIVATE Threads::Threads)
+target_compile_features(drum_instrument_test PRIVATE cxx_std_17)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(drum_instrument_test PRIVATE -Wall -Wextra -Werror=switch)
+endif()
+add_test(NAME drum_instrument COMMAND drum_instrument_test)
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME drum_tci2sfz
+    COMMAND ${Python3_EXECUTABLE}
+            "${CMAKE_SOURCE_DIR}/tools/tci2sfz/test_tci2sfz.py")
+  set_tests_properties(drum_tci2sfz PROPERTIES SKIP_RETURN_CODE 77)
+endif()
+
 add_executable(drum_dsp_test test/test_dsp.cpp)
 target_include_directories(drum_dsp_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_compile_features(drum_dsp_test PRIVATE cxx_std_20)

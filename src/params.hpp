@@ -75,6 +75,7 @@ enum ParamId : uint32_t {
   P_TRANSIENT_ATTACK,
   P_TRANSIENT_SUSTAIN,
   P_TRANSIENT_SENS,
+  P_SAMPLE_NOTE,
   P_COUNT
 };
 
@@ -238,6 +239,8 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      false, "%", {}},
     {"transient_sens", "Sens", "Comp", 0.0, 100.0, 50.0, false, false, false,
      "%", {}},
+    {"sample_note", "MIDI Note", "Sample", 0.0, 127.0, 36.0, true, false,
+     false, nullptr, {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -276,6 +279,10 @@ inline double recommendedTarget(uint32_t id, int drum) noexcept {
       return sm.sensitivity;
     case P_SAMPLE_OFFSET:
       return sm.offsetMs;
+    case P_SAMPLE_NOTE: {
+      static const int kGmNote[8] = {36, 38, 45, 42, 51, 41, 49, 36};
+      return static_cast<double>(kGmNote[drum]);
+    }
     case P_TRANSIENT_ON:
       return tr.on ? 1.0 : 0.0;
     case P_TRANSIENT_ATTACK:
@@ -504,12 +511,33 @@ public:
     return false;
   }
 
-  std::shared_ptr<const SampleBuffer> sample() const noexcept {
-    return sample_.load();
+  std::shared_ptr<const Instrument> instrument() const noexcept {
+    return instrument_.load();
   }
 
+  std::shared_ptr<const SampleBuffer> sample() const noexcept {
+    const auto i = instrument_.load();
+    return i ? i->preview() : nullptr;
+  }
+
+  void setInstrument(std::shared_ptr<const Instrument> i) noexcept {
+    instrument_.store(std::move(i));
+  }
+
+  // Compatibility helper for callers/tests that still load a single WAV.
   void setSample(std::shared_ptr<const SampleBuffer> s) noexcept {
-    sample_.store(std::move(s));
+    if (!s) {
+      instrument_.store(nullptr);
+      return;
+    }
+    auto instrument = std::make_shared<Instrument>();
+    Zone z;
+    z.sample = std::move(s);
+    instrument->zones.push_back(std::move(z));
+    instrument->type = "wav";
+    instrument->name = instrument->zones.front().sample->name;
+    instrument->path = instrument->zones.front().sample->path;
+    instrument_.store(std::move(instrument));
   }
 
   uint32_t takeGhostTrigger() noexcept {
@@ -538,10 +566,12 @@ public:
   std::atomic<int> compHistoryHead;
   std::atomic<uint32_t> midiGhostTrigger{0};
   std::atomic<uint32_t> midiSampleTrigger{0};
+  std::atomic<int> midiSampleNote{36};
+  std::atomic<int> midiSampleVelocity{100};
   std::atomic<float> scopeIn[kScopeSize];
   std::atomic<float> scopeGate[kScopeSize];
   std::atomic<int> scopeHead;
-  std::atomic<std::shared_ptr<const SampleBuffer>> sample_;
+  std::atomic<std::shared_ptr<const Instrument>> instrument_;
 
 private:
   std::atomic<double> values_[P_COUNT];
@@ -607,6 +637,8 @@ inline void applyDrumDefaults(Shared& s, int drum) noexcept {
   s.set(P_SAMPLE_SENSITIVITY, sm.sensitivity);
   s.set(P_SAMPLE_OFFSET, sm.offsetMs);
   s.set(P_SAMPLE_TRIGGER, static_cast<double>(sm.trigger));
+  static const int kGmNote[8] = {36, 38, 45, 42, 51, 41, 49, 36};
+  s.set(P_SAMPLE_NOTE, static_cast<double>(kGmNote[drum]));
 }
 
 inline Controls controlsFrom(Shared& s) noexcept {
@@ -636,6 +668,9 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.sampleSensitivity = static_cast<float>(s.get(P_SAMPLE_SENSITIVITY));
   c.sampleOffsetMs = static_cast<float>(s.get(P_SAMPLE_OFFSET));
   c.sampleMidiTrigger = static_cast<int>(s.takeSampleTrigger());
+  c.sampleMidiNote = s.midiSampleNote.load(std::memory_order_relaxed);
+  c.sampleNote = static_cast<int>(s.get(P_SAMPLE_NOTE) + 0.5);
+  c.sampleMidiVelocity = s.midiSampleVelocity.load(std::memory_order_relaxed);
   c.transientOn = s.get(P_TRANSIENT_ON) > 0.5;
   c.transientAttack = static_cast<float>(s.get(P_TRANSIENT_ATTACK));
   c.transientSustain = static_cast<float>(s.get(P_TRANSIENT_SUSTAIN));

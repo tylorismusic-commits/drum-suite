@@ -467,7 +467,13 @@ void applyEvents(Plugin* s, const clap_input_events_t* in) {
     } else if (hdr->type == CLAP_EVENT_NOTE_ON) {
       const auto* n = reinterpret_cast<const clap_event_note_t*>(hdr);
       const int ghostNote = static_cast<int>(s->shared.get(P_GHOST_NOTE) + 0.5);
-      if (std::isfinite(n->velocity) && n->velocity > 0.0) {
+      const int sampleNote = static_cast<int>(s->shared.get(P_SAMPLE_NOTE) + 0.5);
+      if (n->key == sampleNote && std::isfinite(n->velocity) &&
+          n->velocity > 0.0) {
+        s->shared.midiSampleNote.store(n->key, std::memory_order_relaxed);
+        s->shared.midiSampleVelocity.store(
+            std::clamp(static_cast<int>(std::lround(n->velocity * 127.0)), 1, 127),
+            std::memory_order_relaxed);
         s->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
       }
       if (n->key == ghostNote && std::isfinite(n->velocity) && n->velocity > 0.0) {
@@ -478,7 +484,12 @@ void applyEvents(Plugin* s, const clap_input_events_t* in) {
       const auto* m = reinterpret_cast<const clap_event_midi_t*>(hdr);
       const int status = m->data[0] & 0xf0;
       if (status == 0x90 && m->data[2] > 0) {
-        s->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
+        const int sampleNote = static_cast<int>(s->shared.get(P_SAMPLE_NOTE) + 0.5);
+        if (m->data[1] == sampleNote) {
+          s->shared.midiSampleNote.store(m->data[1], std::memory_order_relaxed);
+          s->shared.midiSampleVelocity.store(m->data[2], std::memory_order_relaxed);
+          s->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
+        }
         const int ghostNote = static_cast<int>(s->shared.get(P_GHOST_NOTE) + 0.5);
         if (m->data[1] == ghostNote) {
           s->shared.set(P_GHOST, (m->data[2] / 127.0) * 100.0);
@@ -568,8 +579,8 @@ bool stateSave(const clap_plugin_t* p, const clap_ostream_t* stream) {
   }
   const uint32_t count = P_COUNT;
   const double scale = s->editor.scale();
-  const auto sample = s->shared.sample();
-  const std::string path = sample ? sample->path : std::string();
+  const auto instrument = s->shared.instrument();
+  const std::string path = instrument ? instrument->path : std::string();
   const uint32_t pathSize = static_cast<uint32_t>(path.size());
   return writeAll(stream, &kStateMagic, sizeof(kStateMagic)) &&
          writeAll(stream, &count, sizeof(count)) &&
@@ -615,9 +626,9 @@ bool stateLoad(const clap_plugin_t* p, const clap_istream_t* stream) {
     s->shared.setSample(nullptr);
     return true;
   }
-  auto sample = loadSampleFile(path);
-  if (!sample) s->shared.setFromHost(P_SAMPLE_ON, 0.0);
-  s->shared.setSample(std::move(sample));
+  auto instrument = loadInstrumentFile(path);
+  if (!instrument) s->shared.setFromHost(P_SAMPLE_ON, 0.0);
+  s->shared.setInstrument(std::move(instrument));
   return true;
 }
 
@@ -822,7 +833,7 @@ clap_process_status pluginProcess(const clap_plugin_t* p, const clap_process_t* 
     std::memcpy(right, inR, frames * sizeof(float));
   }
 
-  s->engine.setSample(s->shared.sample());
+  s->engine.setInstrument(s->shared.instrument());
   s->engine.setControls(controlsFrom(s->shared), 0.0f, false);
 
   s->engine.process(left, right, static_cast<int>(frames), s->meters);

@@ -53,9 +53,24 @@ public:
   }
 
   void setSample(std::shared_ptr<const SampleBuffer> sample) noexcept {
-    if (sample == loadedSample_) return;
-    loadedSample_ = std::move(sample);
-    samplePlayer_.setSample(loadedSample_);
+    if (!sample) {
+      setInstrument(nullptr);
+      return;
+    }
+    auto instrument = std::make_shared<Instrument>();
+    Zone z;
+    z.sample = std::move(sample);
+    instrument->zones.push_back(std::move(z));
+    instrument->type = "wav";
+    instrument->name = instrument->zones.front().sample->name;
+    instrument->path = instrument->zones.front().sample->path;
+    setInstrument(std::move(instrument));
+  }
+
+  void setInstrument(std::shared_ptr<const Instrument> instrument) noexcept {
+    if (instrument == loadedInstrument_) return;
+    loadedInstrument_ = std::move(instrument);
+    samplePlayer_.setInstrument(loadedInstrument_);
   }
 
   void process(float* left, float* right, int frames,
@@ -203,7 +218,7 @@ private:
   Drive drive_;
   Clip clip_;
   Limiter limiter_;
-  std::shared_ptr<const SampleBuffer> loadedSample_;
+  std::shared_ptr<const Instrument> loadedInstrument_;
   std::vector<uint8_t> triggers_;
   bool eqFlat_ = true;
   hdsp::Biquad eqLowL_, eqLowR_, eqLowMidL_, eqLowMidR_;

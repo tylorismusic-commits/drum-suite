@@ -326,6 +326,20 @@ int main() {
     check(parseParamValue(shared, P_LIMIT_LOOKAHEAD, "1 ms", &v) &&
               std::fabs(v - 0.444444) < 1e-4,
           "typed lookahead accepts 1 ms");
+    check(formatParamValue(shared, P_SAMPLE_NOTE, 36.0) == "C1",
+          "MIDI note 36 formats as C1");
+    check(parseParamValue(shared, P_SAMPLE_NOTE, "D#2", &v) &&
+              std::fabs(v - 51.0) < 1e-9,
+          "typed MIDI note accepts D#2");
+    static const int kGm[8] = {36, 38, 45, 42, 51, 41, 49, 36};
+    bool notes = true;
+    for (int drum = 0; drum < 8; ++drum) {
+      applyDrumDefaults(shared, drum);
+      if (std::fabs(shared.get(P_SAMPLE_NOTE) - kGm[drum]) > 1e-9) {
+        notes = false;
+      }
+    }
+    check(notes, "each drum tab picks its GM sample note");
   }
 
   cairo_destroy(cr);

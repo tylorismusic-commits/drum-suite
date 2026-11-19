@@ -1,14 +1,16 @@
-// Drum Suite — sample player
+// Drum Suite — multisample player
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Four-voice one-shot sample player.  The Bleed Out gate supplies a per-sample
-// trigger array; the player adds the sample after the gate and applies the
-// direct/sample balance.
+// Thirty-two-voice one-shot/multisample player.  The Bleed Out gate supplies a
+// per-sample trigger array; the player adds the selected instrument after the
+// gate and applies the direct/sample balance.  Zones are chosen by MIDI key
+// and velocity, with SFZ/SF2 round-robin and choke groups.
 
 #pragma once
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -18,10 +20,14 @@ namespace drum {
 
 class SamplePlayer {
 public:
+  static constexpr int kVoices = 32;
+
   void prepare(float sampleRate) noexcept {
     sr_ = sampleRate > 0.0f ? sampleRate : 48000.0f;
     pendingSize_ = std::max(1, static_cast<int>(0.010f * sr_) + 2);
     pending_.assign(static_cast<size_t>(pendingSize_), 0);
+    pendingKey_.assign(static_cast<size_t>(pendingSize_), 36);
+    pendingVel_.assign(static_cast<size_t>(pendingSize_), 100);
     reset();
   }
 
@@ -31,14 +37,33 @@ public:
     prevPeak_ = 0.0f;
     pendingPos_ = 0;
     pendingMidi_ = 0;
+    rr_ = 0;
+    rng_ = 0x1234567u;
     if (!pending_.empty()) {
       std::fill(pending_.begin(), pending_.end(), 0);
     }
+    zoneSeq_.clear();
+  }
+
+  void setInstrument(std::shared_ptr<const Instrument> instrument) noexcept {
+    instrument_ = std::move(instrument);
+    reset();
+    if (instrument_) zoneSeq_.assign(instrument_->zones.size(), 0);
   }
 
   void setSample(std::shared_ptr<const SampleBuffer> sample) noexcept {
-    sample_ = std::move(sample);
-    reset();
+    if (!sample) {
+      setInstrument(nullptr);
+      return;
+    }
+    auto instrument = std::make_shared<Instrument>();
+    Zone z;
+    z.sample = std::move(sample);
+    instrument->zones.push_back(std::move(z));
+    instrument->type = "wav";
+    instrument->name = instrument->zones.front().sample->name;
+    instrument->path = instrument->zones.front().sample->path;
+    setInstrument(std::move(instrument));
   }
 
   void setControls(const Controls& c) noexcept {
@@ -51,10 +76,13 @@ public:
     choke_ = c.sampleChoke;
     fadeSamples_ = std::max(1, static_cast<int>(c.sampleFadeMs * 0.001f * sr_));
     triggerMode_ = c.sampleTrigger;
-    triggerThreshold_ = 0.004f + 0.12f * (1.0f - std::clamp(c.sampleSensitivity, 0.0f, 1.0f));
+    triggerThreshold_ =
+        0.004f + 0.12f * (1.0f - std::clamp(c.sampleSensitivity, 0.0f, 1.0f));
     offsetSamples_ = std::clamp(
         static_cast<int>(c.sampleOffsetMs * 0.001f * sr_), 0,
         std::max(0, pendingSize_ - 1));
+    note_ = std::clamp(c.sampleNote, 0, 127);
+    velocity_ = std::clamp(c.sampleMidiVelocity, 1, 127);
     if (!on_) {
       pendingMidi_ = 0;
       if (!pending_.empty()) std::fill(pending_.begin(), pending_.end(), 0);
@@ -70,14 +98,10 @@ public:
                Meters& meters) noexcept {
     meters.sampleVoices = 0;
     meters.sampleTriggered = false;
-    if (!on_ || !sample_ || sample_->data.empty()) {
+    if (!on_ || !instrument_ || instrument_->zones.empty()) {
       pendingMidi_ = 0;
       return;
     }
-    const auto& data = sample_->data;
-    const int len = static_cast<int>(data.size());
-    const float rate = static_cast<float>(sample_->sampleRate) / sr_;
-    const float stepBase = std::pow(2.0f, pitch_ / 12.0f) * rate;
 
     for (int i = 0; i < frames; ++i) {
       const float peak = std::max(std::fabs(left[i]), std::fabs(right[i]));
@@ -86,60 +110,76 @@ public:
           peak > triggerThreshold_ && prevPeak_ <= triggerThreshold_;
       bool fire = false;
       switch (triggerMode_) {
-        case 0:  // Gate
-          fire = gateFire;
-          break;
-        case 1:  // Independent transient detector
-          fire = transientFire;
-          break;
-        case 2:  // Either source
-          fire = gateFire || transientFire;
-          break;
-        default:  // MIDI only; scheduled below
-          fire = false;
-          break;
+        case 0: fire = gateFire; break;
+        case 1: fire = transientFire; break;
+        case 2: fire = gateFire || transientFire; break;
+        default: fire = false; break;
       }
       if (pendingMidi_ > 0 &&
           (triggerMode_ == 2 || triggerMode_ == 3)) {
-        scheduleTrigger();
+        scheduleTrigger(note_, velocity_);
         --pendingMidi_;
       }
-      if (fire) scheduleTrigger();
+      if (fire) {
+        const float scaled = std::clamp(peak * 140.0f, 1.0f, 127.0f);
+        scheduleTrigger(note_, static_cast<int>(scaled));
+      }
       const bool due = pending_[static_cast<size_t>(pendingPos_)] != 0;
+      const int dueKey = pendingKey_[static_cast<size_t>(pendingPos_)];
+      const int dueVel = pendingVel_[static_cast<size_t>(pendingPos_)];
       pending_[static_cast<size_t>(pendingPos_)] = 0;
       pendingPos_ = (pendingPos_ + 1) % pendingSize_;
       prevPeak_ = peak;
       if (due) {
-        triggerVoice(len, stepBase);
+        triggerZones(dueKey, dueVel);
         meters.sampleTriggered = true;
       }
+
       left[i] *= direct_;
       right[i] *= direct_;
-      float sum = 0.0f;
+      float outL = 0.0f;
+      float outR = 0.0f;
       for (auto& v : voices_) {
         if (!v.active) continue;
-        const float s = read(data, len, v.pos);
+        const SampleBuffer& s = *v.sample;
+        const size_t len = s.data.size();
+        if (len == 0) {
+          v.active = false;
+          continue;
+        }
+        float sl = 0.0f;
+        float sr = 0.0f;
+        readSample(s, v.pos, &sl, &sr);
         float env = 1.0f;
         if (v.fadeIn > 0) {
           env *= 1.0f - static_cast<float>(v.fadeIn) /
                              static_cast<float>(fadeSamples_);
           --v.fadeIn;
         }
-        const int remaining = reverse_ ? v.pos : (len - 1 - v.pos);
+        const float remaining =
+            v.step >= 0.0f ? (static_cast<float>(len - 1) - v.pos)
+                           : (v.pos - 0.0f);
         if (remaining < fadeSamples_) {
-          const float f = static_cast<float>(std::max(0, remaining)) /
-                          static_cast<float>(fadeSamples_);
-          env *= f;
+          env *= std::max(0.0f, remaining) /
+                 static_cast<float>(fadeSamples_);
         }
-        sum += s * env;
+        outL += sl * env * v.gainL;
+        outR += sr * env * v.gainR;
         v.pos += v.step;
-        if (v.pos < 0.0f || v.pos >= static_cast<float>(len - 1)) {
+        if (v.loop && s.loopStart >= 0 && s.loopEnd > s.loopStart) {
+          const float loopStart = static_cast<float>(s.loopStart);
+          const float loopEnd = static_cast<float>(s.loopEnd);
+          if (v.step > 0.0f) {
+            while (v.pos >= loopEnd) v.pos -= (loopEnd - loopStart);
+          } else {
+            while (v.pos < loopStart) v.pos += (loopEnd - loopStart);
+          }
+        } else if (v.pos < 0.0f || v.pos >= static_cast<float>(len - 1)) {
           v.active = false;
         }
       }
-      const float sampleOut = sum * level_;
-      left[i] += sampleOut;
-      right[i] += sampleOut;
+      left[i] += outL * level_;
+      right[i] += outR * level_;
     }
     for (const auto& v : voices_) {
       if (v.active) ++meters.sampleVoices;
@@ -152,36 +192,131 @@ private:
     float pos = 0.0f;
     float step = 1.0f;
     int fadeIn = 0;
+    int group = 0;
+    float gainL = 1.0f;
+    float gainR = 1.0f;
+    bool loop = false;
+    std::shared_ptr<const SampleBuffer> sample;
   };
 
-  static float read(const std::vector<float>& data, int len, float pos) noexcept {
-    if (len <= 0) return 0.0f;
-    if (pos <= 0.0f) return data[0];
-    const int i0 = static_cast<int>(pos);
-    if (i0 >= len - 1) return data[len - 1];
+  static void readSample(const SampleBuffer& s, float pos, float* l,
+                         float* r) noexcept {
+    const size_t len = s.data.size();
+    if (len == 0) {
+      *l = 0.0f;
+      *r = 0.0f;
+      return;
+    }
+    if (pos <= 0.0f) {
+      *l = s.data[0];
+      *r = s.dataR.empty() ? *l : s.dataR[0];
+      return;
+    }
+    const size_t i0 = static_cast<size_t>(pos);
+    if (i0 >= len - 1) {
+      *l = s.data[len - 1];
+      *r = s.dataR.empty() ? *l : s.dataR[len - 1];
+      return;
+    }
     const float frac = pos - static_cast<float>(i0);
-    return data[static_cast<size_t>(i0)] * (1.0f - frac) +
-           data[static_cast<size_t>(i0 + 1)] * frac;
+    *l = s.data[i0] * (1.0f - frac) + s.data[i0 + 1] * frac;
+    if (s.dataR.empty()) {
+      *r = *l;
+    } else {
+      *r = s.dataR[i0] * (1.0f - frac) + s.dataR[i0 + 1] * frac;
+    }
   }
 
-  void scheduleTrigger() noexcept {
+  uint32_t random() noexcept {
+    rng_ = rng_ * 1664525u + 1013904223u;
+    return rng_;
+  }
+
+  void scheduleTrigger(int key, int velocity) noexcept {
     if (pending_.empty()) return;
     const int index = (pendingPos_ + offsetSamples_) % pendingSize_;
     pending_[static_cast<size_t>(index)] = 1;
+    pendingKey_[static_cast<size_t>(index)] = key;
+    pendingVel_[static_cast<size_t>(index)] = velocity;
   }
 
-  void triggerVoice(int len, float stepBase) noexcept {
+  void triggerZones(int key, int velocity) noexcept {
+    if (!instrument_) return;
+    ++rr_;
     if (choke_) {
       for (auto& v : voices_) v.active = false;
     }
-    Voice& v = voices_[static_cast<size_t>(nextVoice_)];
-    nextVoice_ = (nextVoice_ + 1) % 4;
-    v.active = true;
-    v.step = reverse_ ? -stepBase : stepBase;
-    v.pos = reverse_ ? static_cast<float>(len - 1) -
-                           start_ * static_cast<float>(len - 1)
-                     : start_ * static_cast<float>(len - 1);
-    v.fadeIn = fadeSamples_;
+
+    struct Match {
+      size_t index = 0;
+      bool offBy = false;
+      int group = 0;
+    };
+    std::vector<Match> matches;
+    matches.reserve(instrument_->zones.size());
+    for (size_t i = 0; i < instrument_->zones.size(); ++i) {
+      const Zone& z = instrument_->zones[i];
+      if (!z.sample) continue;
+      if (key < z.lokey || key > z.hikey) continue;
+      if (velocity < z.lovel || velocity > z.hivel) continue;
+      if (z.loRand > 0 || z.hiRand < 127) {
+        const int r = static_cast<int>(random() % 128u);
+        if (r < z.loRand || r > z.hiRand) continue;
+      }
+      if (zoneSeq_.size() <= i) zoneSeq_.resize(i + 1, 0);
+      ++zoneSeq_[i];
+      if (z.seqLength > 1) {
+        const int pos = static_cast<int>((zoneSeq_[i] - 1) % z.seqLength) + 1;
+        if (pos != z.seqPosition) continue;
+      }
+      matches.push_back({i, z.offBy != 0, z.group});
+    }
+
+    // Melodic SFZ/SF2 files often have key ranges around middle C.  If the
+    // configured note falls outside every zone, play the first zone rather
+    // than silently producing nothing.
+    if (matches.empty()) {
+      for (size_t i = 0; i < instrument_->zones.size(); ++i) {
+        if (instrument_->zones[i].sample) {
+          matches.push_back({i, false, instrument_->zones[i].group});
+          break;
+        }
+      }
+    }
+
+    for (const auto& m : matches) {
+      const Zone& z = instrument_->zones[m.index];
+      if (z.offBy != 0) {
+        for (auto& v : voices_) {
+          if (v.active && v.group == z.offBy) v.active = false;
+        }
+      }
+      Voice& v = voices_[static_cast<size_t>(nextVoice_)];
+      nextVoice_ = (nextVoice_ + 1) % kVoices;
+      v = Voice{};
+      v.active = true;
+      v.sample = z.sample;
+      v.group = z.group;
+      v.loop = z.loop;
+      const int root = z.rootKey >= 0
+                           ? z.rootKey
+                           : (z.sample->rootKey >= 0 ? z.sample->rootKey : key);
+      const float semis = static_cast<float>(key - root) + pitch_;
+      const float cents = z.tuneCents;
+      const float rate = static_cast<float>(z.sample->sampleRate) / sr_;
+      const float stepBase =
+          std::pow(2.0f, (semis * 100.0f + cents) / 1200.0f) * rate;
+      const size_t len = z.sample->data.size();
+      v.step = (reverse_ != z.reverse) ? -stepBase : stepBase;
+      const float startPos = start_ * static_cast<float>(len > 0 ? len - 1 : 0);
+      v.pos = v.step >= 0.0f ? startPos : static_cast<float>(len) - 1.0f - startPos;
+      v.fadeIn = fadeSamples_;
+      const float gain = std::pow(10.0f, z.gainDb / 20.0f);
+      const float pan = std::clamp(z.pan, -1.0f, 1.0f);
+      const float angle = (pan + 1.0f) * 0.25f * 3.14159265358979f;
+      v.gainL = std::cos(angle) * gain;
+      v.gainR = std::sin(angle) * gain;
+    }
   }
 
   float sr_ = 48000.0f;
@@ -198,12 +333,19 @@ private:
   int pendingMidi_ = 0;
   int pendingPos_ = 0;
   int pendingSize_ = 1;
+  int note_ = 36;
+  int velocity_ = 100;
+  uint32_t rr_ = 0;
+  uint32_t rng_ = 0x1234567u;
   std::vector<uint8_t> pending_;
+  std::vector<int> pendingKey_;
+  std::vector<int> pendingVel_;
   float triggerThreshold_ = 0.02f;
   float prevPeak_ = 0.0f;
   int nextVoice_ = 0;
-  std::shared_ptr<const SampleBuffer> sample_;
-  Voice voices_[4];
+  std::vector<uint32_t> zoneSeq_;
+  std::shared_ptr<const Instrument> instrument_;
+  Voice voices_[kVoices];
 };
 
 } // namespace drum

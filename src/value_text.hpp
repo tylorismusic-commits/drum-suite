@@ -26,6 +26,49 @@ inline std::string trimText(const std::string& s) {
   return s.substr(a, b - a + 1);
 }
 
+inline std::string noteName(int note) {
+  static const char* names[12] = {"C", "C#", "D", "D#", "E", "F",
+                                  "F#", "G", "G#", "A", "A#", "B"};
+  note = std::clamp(note, 0, 127);
+  char buf[16];
+  std::snprintf(buf, sizeof(buf), "%s%d", names[note % 12], note / 12 - 2);
+  return buf;
+}
+
+inline bool parseNoteName(const std::string& raw, int* note) {
+  const std::string text = lowerText(trimText(raw));
+  if (text.empty()) return false;
+  int semitone = -1;
+  switch (text[0]) {
+    case 'c': semitone = 0; break;
+    case 'd': semitone = 2; break;
+    case 'e': semitone = 4; break;
+    case 'f': semitone = 5; break;
+    case 'g': semitone = 7; break;
+    case 'a': semitone = 9; break;
+    case 'b': semitone = 11; break;
+    default: return false;
+  }
+  size_t i = 1;
+  if (i < text.size() && (text[i] == '#' || text[i] == 's')) {
+    ++semitone;
+    ++i;
+  } else if (i < text.size() && text[i] == 'b') {
+    --semitone;
+    ++i;
+  }
+  while (i < text.size() && text[i] == ' ') ++i;
+  if (i >= text.size()) {
+    *note = std::clamp((4 + 2) * 12 + semitone, 0, 127);
+    return true;
+  }
+  char* end = nullptr;
+  const int octave = static_cast<int>(std::strtol(text.c_str() + i, &end, 10));
+  if (end == text.c_str() + i) return false;
+  *note = std::clamp((octave + 2) * 12 + semitone, 0, 127);
+  return true;
+}
+
 inline std::string formatParamValue(const Shared& shared, uint32_t id,
                                    double value) {
   const ParamSpec& s = kParamSpecs[id];
@@ -36,6 +79,9 @@ inline std::string formatParamValue(const Shared& shared, uint32_t id,
   }
   char buf[64];
   if (s.toggled) return value > 0.5 ? "On" : "Off";
+  if (id == P_SAMPLE_NOTE) {
+    return noteName(static_cast<int>(std::lround(value)));
+  }
   if (id == P_GHOST_NOTE || id == P_GHOST_CC) {
     std::snprintf(buf, sizeof(buf), "%.0f", value);
     return buf;
@@ -136,6 +182,13 @@ inline bool parseParamValue(const Shared& shared, uint32_t id,
   }
   if (text == "on" || text == "true" || text == "yes") { *out = 1.0; return true; }
   if (text == "off" || text == "false" || text == "no") { *out = 0.0; return true; }
+  if (id == P_SAMPLE_NOTE) {
+    int note = 0;
+    if (parseNoteName(text, &note)) {
+      *out = static_cast<double>(note);
+      return true;
+    }
+  }
   char* end = nullptr;
   double v = std::strtod(text.c_str(), &end);
   if (end == text.c_str()) return false;

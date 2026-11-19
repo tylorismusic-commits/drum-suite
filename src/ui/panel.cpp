@@ -115,7 +115,9 @@ std::vector<std::string> listSampleFiles(const std::string& dir) {
     std::string name = entry.path().filename().string();
     std::string ext = entry.path().extension().string();
     for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (ext == ".wav") names.push_back(name);
+    if (ext == ".wav" || ext == ".sfz" || ext == ".sf2") {
+      names.push_back(name);
+    }
   }
   std::sort(names.begin(), names.end());
   return names;
@@ -487,6 +489,17 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     knob(P_SAMPLE_TRIGGER, 720, 555, 26, "TRIGGER",
          sc(kSampleTriggerLabels), false, 4, 1.7);
     knob(P_SAMPLE_OFFSET, 820, 555, 26, "OFFSET");
+    knob(P_SAMPLE_NOTE, 420, 575, 26, "MIDI NOTE");
+    {
+      Widget load{};
+      load.kind = Kind::LoadFolder;
+      load.x = 270;
+      load.y = 182;
+      load.w = 160;
+      load.h = 26;
+      load.label = "LOAD ALL WAVS";
+      widgets_.push_back(load);
+    }
     pill(P_SAMPLE_REVERSE, 540, 610, 100, 24, "REVERSE");
     pill(P_SAMPLE_CHOKE, 660, 610, 100, 24, "CHOKE");
   } else if (state.page == 2) {
@@ -703,6 +716,15 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
         shared.set(w.param, w.value);
         state.presetDirty = true;
         return true;
+      case Kind::LoadFolder: {
+        auto instrument = loadInstrumentFile(sampleDir());
+        if (instrument) {
+          shared.setInstrument(std::move(instrument));
+          shared.set(P_SAMPLE_ON, 1.0);
+          state.presetDirty = true;
+        }
+        return true;
+      }
       case Kind::Toggle: {
         const double f = (y - w.y) / w.h;
         shared.set(w.param, f < 0.5 ? 1.0 : 0.0);
@@ -1063,7 +1085,8 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
                            const PanelState& state) const {
   const int drum = std::clamp(static_cast<int>(shared.get(P_DRUM) + 0.5), 0, 7);
   const Skin skin = skinFor(drum);
-  const auto sample = shared.sample();
+  const auto instrument = shared.instrument();
+  const auto sample = instrument ? instrument->preview() : nullptr;
 
   // Waveform well.
   const double wx = 500, wy = 220, ww = 444, wh = 118;
@@ -1097,7 +1120,7 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   } else {
     text(cr, "NO SAMPLE LOADED", wx + ww * 0.5, wy + wh * 0.5 - 6, 14, 1,
          skin.legend.r, skin.legend.g, skin.legend.b);
-    text(cr, "PUT WAV FILES IN THE FOLDER BELOW, THEN CLICK ONE", wx + ww * 0.5,
+    text(cr, "PUT WAV, SFZ OR SF2 FILES IN THE FOLDER BELOW", wx + ww * 0.5,
          wy + wh * 0.5 + 15, 9, 1, skin.legendDim.r, skin.legendDim.g,
          skin.legendDim.b);
   }
@@ -1125,8 +1148,8 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
     setRgb(cr, active ? skin.btnOn : skin.legendDim, active ? 1.0 : 0.35);
     cairo_fill(cr);
     char voices[24];
-    std::snprintf(voices, sizeof(voices), "VOICE %d/4",
-                  std::clamp(state.sampleVoices, 0, 4));
+    std::snprintf(voices, sizeof(voices), "VOICE %d/32",
+                  std::clamp(state.sampleVoices, 0, 32));
     text(cr, voices, wx + ww - 74, wy + 20, 8.5, 0, skin.legend.r,
          skin.legend.g, skin.legend.b);
   }
@@ -1140,8 +1163,17 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
                                ? static_cast<double>(sample->data.size()) /
                                      sample->sampleRate
                                : 0.0;
-    std::snprintf(info, sizeof(info), "%s   -   48 kHz   -   %.2f s",
-                  clippedName(sample->name, 24).c_str(), seconds);
+    if (instrument && instrument->type != "wav" &&
+        instrument->zones.size() > 1) {
+      std::snprintf(info, sizeof(info), "%s   -   %s   -   %zu zones   -   MIDI %s",
+                    clippedName(instrument->name, 28).c_str(),
+                    instrument->type.c_str(), instrument->zones.size(),
+                    noteName(static_cast<int>(
+                        std::lround(shared.get(P_SAMPLE_NOTE)))).c_str());
+    } else {
+      std::snprintf(info, sizeof(info), "%s   -   48 kHz   -   %.2f s",
+                    clippedName(sample->name, 24).c_str(), seconds);
+    }
     text(cr, info, wx, wy + wh + 18, 10, 0, skin.legend.r, skin.legend.g,
          skin.legend.b);
   } else {
@@ -1172,12 +1204,14 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
   cairo_stroke(cr);
 
   if (state.sampleFiles.empty()) {
-    text(cr, "NO .WAV FILES IN THIS FOLDER", bx + bw * 0.5, by + 92, 10, 1,
+    text(cr, "NO WAV / SFZ / SF2 FILES IN THIS FOLDER", bx + bw * 0.5, by + 92, 10, 1,
          skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
     text(cr, "THE LIST REFRESHES AUTOMATICALLY", bx + bw * 0.5, by + 112, 8.5,
          1, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
   } else {
-    const std::string loaded = sample ? sample->name : std::string();
+    const std::string loaded =
+        instrument ? std::filesystem::path(instrument->path).filename().string()
+                   : std::string();
     for (int i = 0; i < 9; ++i) {
       const int index = state.sampleScroll + i;
       if (index >= static_cast<int>(state.sampleFiles.size())) break;
@@ -1858,6 +1892,9 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
     case Kind::Button:
       drawButton(cr, w, std::fabs(shared.get(w.param) - w.value) < 1e-3, drum);
       break;
+    case Kind::LoadFolder:
+      drawButton(cr, w, false, drum);
+      break;
     case Kind::Toggle:
       drawToggle(cr, w, shared.get(w.param) > 0.5, drum);
       break;
@@ -2077,6 +2114,13 @@ void Panel::drawKnob(cairo_t* cr, const Widget& w, double value,
   const double labelY = w.labelBelow ? cy + r * 1.44 + 20 : cy - r * 1.44 - 18;
   text(cr, w.label, cx, labelY, 11, 1, skin.legend.r, skin.legend.g,
        skin.legend.b);
+  if (w.param == P_SAMPLE_NOTE) {
+    char note[24];
+    const int n = static_cast<int>(std::lround(value));
+    std::snprintf(note, sizeof(note), "%s  (%d)", noteName(n).c_str(), n);
+    text(cr, note, cx, cy + r * 1.44 + 14, 10, 1, skin.btnOn.r, skin.btnOn.g,
+         skin.btnOn.b);
+  }
 }
 
 void Panel::drawButton(cairo_t* cr, const Widget& w, bool lit,
@@ -2280,9 +2324,9 @@ void Panel::applyPreset(Shared& shared, PanelState& state, int index) const {
 
 bool Panel::loadSample(Shared& shared, PanelState& state,
                        const std::string& path) const {
-  auto buffer = loadSampleFile(path);
-  if (!buffer) return false;
-  shared.setSample(std::move(buffer));
+  auto instrument = loadInstrumentFile(path);
+  if (!instrument) return false;
+  shared.setInstrument(std::move(instrument));
   shared.set(P_SAMPLE_ON, 1.0);
   state.presetDirty = true;
   return true;

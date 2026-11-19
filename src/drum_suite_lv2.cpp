@@ -106,7 +106,7 @@ LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
     p->chunkType = p->map->map(p->map->handle, LV2_ATOM__Chunk);
   }
   p->engine.prepare(p->sampleRate);
-  p->engine.setSample(p->shared.sample());
+  p->engine.setInstrument(p->shared.instrument());
   p->engine.setControls(drum::controlsFrom(p->shared), 0.0f, false);
   return p;
 }
@@ -180,7 +180,13 @@ void run(LV2_Handle handle, uint32_t frames) {
       const auto* data = static_cast<const uint8_t*>(LV2_ATOM_BODY(&ev->body));
       const int status = data[0] & 0xf0;
       if (status == 0x90 && data[2] > 0) {
-        p->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
+        const int sampleNote =
+            static_cast<int>(p->shared.get(drum::P_SAMPLE_NOTE) + 0.5);
+        if (data[1] == sampleNote) {
+          p->shared.midiSampleNote.store(data[1], std::memory_order_relaxed);
+          p->shared.midiSampleVelocity.store(data[2], std::memory_order_relaxed);
+          p->shared.midiSampleTrigger.fetch_add(1, std::memory_order_relaxed);
+        }
         const int ghostNote = static_cast<int>(p->shared.get(drum::P_GHOST_NOTE) + 0.5);
         if (data[1] == ghostNote) {
           p->shared.set(drum::P_GHOST, (data[2] / 127.0) * 100.0);
@@ -195,7 +201,7 @@ void run(LV2_Handle handle, uint32_t frames) {
     }
   }
 
-  p->engine.setSample(p->shared.sample());
+  p->engine.setInstrument(p->shared.instrument());
   p->engine.setControls(drum::controlsFrom(p->shared), 0.0f, false);
 
   if (p->audioOutL != p->audioInL) {
@@ -332,9 +338,9 @@ LV2_State_Status stateRestore(LV2_Handle handle,
     return LV2_STATE_SUCCESS;
   }
   const std::string path(reinterpret_cast<const char*>(bytes + off), pathSize);
-  auto sample = drum::loadSampleFile(path);
-  if (!sample) p->shared.setFromHost(drum::P_SAMPLE_ON, 0.0);
-  p->shared.setSample(std::move(sample));
+  auto instrument = drum::loadInstrumentFile(path);
+  if (!instrument) p->shared.setFromHost(drum::P_SAMPLE_ON, 0.0);
+  p->shared.setInstrument(std::move(instrument));
   return LV2_STATE_SUCCESS;
 }
 

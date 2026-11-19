@@ -236,10 +236,56 @@ inline float eqLpfHz(float v) noexcept {
 // One loaded sample.  The audio thread only sees an immutable shared_ptr; the
 // panel builds a new buffer when the user loads a file.
 struct SampleBuffer {
-  std::vector<float> data;
+  std::vector<float> data;   // left channel (or mono)
+  std::vector<float> dataR;  // right channel; empty for mono
   int sampleRate = 48000;
+  int rootKey = -1;          // -1 = use the zone/key without transposition
+  float tuneCents = 0.0f;
+  int loopStart = -1;
+  int loopEnd = -1;
   std::string name;
   std::string path;
+
+  bool stereo() const { return !dataR.empty(); }
+  size_t frames() const { return data.size(); }
+};
+
+// One region of a multisample instrument.  Drum Suite is a single-channel
+// strip, so zones are selected by key and velocity; a drum kit SFZ/SF2 can be
+// loaded per instance and played from MIDI notes.
+struct Zone {
+  std::shared_ptr<const SampleBuffer> sample;
+  int lokey = 0;
+  int hikey = 127;
+  int lovel = 0;
+  int hivel = 127;
+  int rootKey = -1;
+  int seqLength = 0;       // 0/1 = no round robin
+  int seqPosition = 1;
+  int loRand = 0;
+  int hiRand = 127;
+  int group = 0;
+  int offBy = 0;
+  float tuneCents = 0.0f;
+  float gainDb = 0.0f;
+  float pan = 0.0f;        // -1..1
+  bool loop = false;
+  bool reverse = false;
+};
+
+struct Instrument {
+  std::string name;
+  std::string path;
+  std::string type;        // wav, wav-folder, sfz, sf2
+  std::vector<Zone> zones;
+
+  bool valid() const { return !zones.empty(); }
+  std::shared_ptr<const SampleBuffer> preview() const {
+    for (const auto& z : zones) {
+      if (z.sample && !z.sample->data.empty()) return z.sample;
+    }
+    return nullptr;
+  }
 };
 
 struct Controls {
@@ -326,6 +372,9 @@ struct Controls {
   float sampleSensitivity = 0.5f;
   float sampleOffsetMs = 0.0f;
   int sampleMidiTrigger = 0;
+  int sampleMidiNote = 36;
+  int sampleNote = 36;
+  int sampleMidiVelocity = 100;
 };
 
 struct Meters {

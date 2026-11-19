@@ -49,16 +49,25 @@ The full three-knob de-bleed gate from the standalone Bleed Out:
 
 ## Sample
 
-The Sample page layers a one-shot over the gated drum. Put mono or stereo WAV
-files in:
+The Sample page layers a multisample instrument over the gated drum. Put mono
+or stereo WAV files, SFZ instruments, or SF2 soundfonts in:
 
 ```text
 ~/.local/share/drum-suite/samples
 ```
 
-Click a file in the page to load it. The list refreshes while the editor is
-open.
+Click a file in the page to load it. **LOAD ALL WAVS** turns every WAV in the
+folder into a velocity-layered instrument, sorted by peak unless the filenames
+carry `V01`/`RR1` tags. The list refreshes while the editor is open.
 
+The player supports up to 32 voices, SFZ/SF2 key and velocity ranges, round
+robins (`seq_length`/`seq_position`), choke groups (`group`/`off_by`), stereo
+samples, loop points and per-zone tuning/pan/volume. SFZ amplitude envelopes
+and filters are not implemented yet; the sample plays as a one-shot.
+
+- **MIDI Note** picks the note that triggers this instance. The default follows
+  the drum tab using the GM map: Kick C1 (36), Snare D1 (38), Tom A1 (45),
+  Hat F#1 (42), Ride D#2 (51), Room F1 (41), OH C#2 (49), Bus C1 (36).
 - **Sample On** enables the layer; loading a file turns it on.
 - **Level** and **Direct** balance the sample against the gated direct signal.
 - **Pitch** ±24 semitones, **Start** moves the playback start point (shown as
@@ -68,14 +77,29 @@ open.
   input onset detector), **Always** (either audio source) or **MIDI**.
 - **Sensitivity** sets the transient threshold.
 - **Offset** delays the sample by 0–10 ms for alignment.
-- Four voices; choke is on by default. The waveform badge shows the live voice
+- 32 voices; choke is on by default. The waveform badge shows the live voice
   count and trigger LED.
 - The sample path is saved in CLAP/LV2 state and reloaded if the file is still
   in place.
 
-The waveform shows the loaded file. The sample is loaded from disk at runtime;
-0.2.0 does not embed the audio in the plugin state yet, so a recalled session
-shows the same folder and reloads the file from it.
+The waveform shows the first loaded layer. Audio is loaded from disk at
+runtime, not embedded in the plugin state, so a recalled session shows the same
+instrument path and reloads it from disk.
+
+### TCI instruments
+
+`tools/tci2sfz/tci2sfz.py` is a standalone Slate Trigger `.tci` → SFZ + WAV
+converter with velocity layers and round robins:
+
+```bash
+python3 tools/tci2sfz/tci2sfz.py "Snare Z3.tci" -o ~/tci-sfz
+python3 tools/tci2sfz/tci2sfz.py /path/to/library -o ~/tci-sfz --bank
+```
+
+It uses the MIT-licensed clean-room decoder from `tci2wav`. TCI is a
+proprietary Slate/Trigger format and the decoder is unofficial; only use files
+you are licensed to use. Stereo TCI attacks may be missing their first ~2 ms
+because that part of the format is still undecoded.
 
 ![Drum Suite — Sample](docs/sample-page.png)
 
