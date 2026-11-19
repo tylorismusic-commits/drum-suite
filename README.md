@@ -1,12 +1,12 @@
 # Drum Suite
 
-**Version 0.9.0-alpha.4 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0-alpha.11 — Linux x86_64** · GPL-3.0-or-later
 
 > **Public alpha.** The full seven-page chain is usable, but factory presets
 > and final tuning are planned after feedback. Expect parameter/preset changes;
 > use it on copies of important sessions.
 >
-> [Download v0.9.0-alpha.4](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.4)
+> [Download v0.9.0-alpha.4](https://github.com/tylorismusic-commits/drum-suite/releases/tag/v0.9.0-alpha.11)
 
 A drum channel strip in the Suite visual language. The whole chain is now
 working: **Bleed Out → Sample → EQ → Comp → Drive → Clip → Limit**.

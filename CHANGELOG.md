@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0-alpha.11 — 2026-11-19
+
+- User preset bank: save, rename, duplicate, delete, export and drag-drop
+  import, alongside the factory presets. Sample files are not embedded in a
+  preset.
+- Preset files live in `~/.config/DrumSuite/presets` and export to
+  `~/Documents/Drum Suite Presets`.
+
 ## 0.9.0-alpha.10 — 2026-11-19
 
 - Per-page lock icons: RECOMMENDED skips locked pages and updates the rest.
