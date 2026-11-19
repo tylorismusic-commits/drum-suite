@@ -47,6 +47,26 @@ public:
   }
 
   void setInstrument(std::shared_ptr<const Instrument> instrument) noexcept {
+    // Saving or editing a map replaces the Instrument object but keeps the
+    // same zones.  Preserve the round-robin counters and active voices in that
+    // case so Save does not force the next hit back to zone one.
+    if (instrument_ && instrument &&
+        instrument_->zones.size() == instrument->zones.size()) {
+      bool same = true;
+      for (size_t i = 0; i < instrument_->zones.size(); ++i) {
+        const Zone& a = instrument_->zones[i];
+        const Zone& b = instrument->zones[i];
+        if (a.sample != b.sample || a.seqLength != b.seqLength ||
+            a.seqPosition != b.seqPosition) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        instrument_ = std::move(instrument);
+        return;
+      }
+    }
     instrument_ = std::move(instrument);
     reset();
     if (instrument_) zoneSeq_.assign(instrument_->zones.size(), 0);
@@ -65,6 +85,8 @@ public:
     instrument->name = instrument->zones.front().sample->name;
     instrument->path = instrument->zones.front().sample->path;
     setInstrument(std::move(instrument));
+    reset();
+    if (instrument_) zoneSeq_.assign(instrument_->zones.size(), 0);
   }
 
   void setControls(const Controls& c) noexcept {
@@ -99,6 +121,8 @@ public:
   void process(float* left, float* right, const uint8_t* trigger, int frames,
                Meters& meters) noexcept {
     meters.sampleVoices = 0;
+    meters.sampleZone = -1;
+    meters.sampleZoneCount = instrument_ ? static_cast<int>(instrument_->zones.size()) : 0;
     meters.sampleTriggered = false;
     if (!on_ || !instrument_ || instrument_->zones.empty()) {
       pendingMidi_ = 0;
@@ -137,6 +161,9 @@ public:
       if (due) {
         triggerZones(dueKey, dueVel);
         meters.sampleTriggered = true;
+        meters.sampleZone = lastZone_;
+        meters.sampleZoneCount =
+            instrument_ ? static_cast<int>(instrument_->zones.size()) : 0;
       }
 
       left[i] *= direct_;
@@ -326,6 +353,9 @@ private:
       }
     }
 
+    if (!matches.empty()) {
+      lastZone_ = static_cast<int>(matches.back().index);
+    }
     for (const auto& m : matches) {
       const Zone& z = instrument_->zones[m.index];
       if (z.offBy != 0) {
@@ -395,6 +425,7 @@ private:
   float prevPeak_ = 0.0f;
   bool prevGate_ = false;
   int nextVoice_ = 0;
+  int lastZone_ = -1;
   std::vector<uint32_t> zoneSeq_;
   std::shared_ptr<const Instrument> instrument_;
   Voice voices_[kVoices];

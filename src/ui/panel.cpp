@@ -994,6 +994,8 @@ void Panel::tick(const Shared& shared, PanelState& state) const {
   state.compGrDb = shared.compGrDb.load(std::memory_order_relaxed);
   state.clipActive = shared.clipActive.load(std::memory_order_relaxed);
   state.sampleVoices = shared.sampleVoices.load(std::memory_order_relaxed);
+  state.sampleZone = shared.sampleZone.load(std::memory_order_relaxed);
+  state.sampleZoneCount = shared.sampleZoneCount.load(std::memory_order_relaxed);
   state.sampleActive = shared.sampleActive.load(std::memory_order_relaxed);
   state.sampleRate = shared.sampleRate.load(std::memory_order_relaxed);
   if (state.sampleRate <= 0.0f) state.sampleRate = 48000.0f;
@@ -1397,6 +1399,12 @@ void Panel::drawZoneOverlay(cairo_t* cr, Shared& shared,
        skin.btnTextOn.b);
   text(cr, "Each row is a zone: key/velocity range, round robin, start and end.",
        220, 112, 10, 0, skin.legendDim.r, skin.legendDim.g, skin.legendDim.b);
+  if (state.sampleZoneCount > 0) {
+    char playing[64];
+    std::snprintf(playing, sizeof(playing), "PLAYING %d / %d",
+                  state.sampleZone + 1, state.sampleZoneCount);
+    text(cr, playing, 790, 112, 10, 2, 0.45, 0.95, 0.55);
+  }
 
   auto button = [&](double x, double w, const char* label) {
     roundRect(cr, x, 124, w, 24, 4);
@@ -1434,6 +1442,12 @@ void Panel::drawZoneOverlay(cairo_t* cr, Shared& shared,
       roundRect(cr, tx + 4, y + 1, tw - 8, 20, 3);
       setRgb(cr, skin.btnOn, 0.22);
       cairo_fill(cr);
+    }
+    if (index == state.sampleZone) {
+      roundRect(cr, tx + 4, y + 1, tw - 8, 20, 3);
+      setRgb(cr, Rgb{0.35, 0.95, 0.45}, 0.30);
+      cairo_fill(cr);
+      text(cr, "\u25b6", tx + tw - 14, y + 15, 10, 2, 0.45, 0.95, 0.55);
     }
     char buf[128];
     std::snprintf(buf, sizeof(buf), "%02d", index + 1);
@@ -1637,8 +1651,14 @@ void Panel::drawSamplePage(cairo_t* cr, const Shared& shared,
     setRgb(cr, active ? skin.btnOn : skin.legendDim, active ? 1.0 : 0.35);
     cairo_fill(cr);
     char voices[24];
-    std::snprintf(voices, sizeof(voices), "VOICE %d/32",
-                  std::clamp(state.sampleVoices, 0, 32));
+    if (state.sampleZoneCount > 0) {
+      std::snprintf(voices, sizeof(voices), "ZONE %d/%d  V%d",
+                    state.sampleZone + 1, state.sampleZoneCount,
+                    std::clamp(state.sampleVoices, 0, 32));
+    } else {
+      std::snprintf(voices, sizeof(voices), "VOICE %d/32",
+                    std::clamp(state.sampleVoices, 0, 32));
+    }
     text(cr, voices, wx + ww - 74, wy + 20, 8.5, 0, skin.legend.r,
          skin.legend.g, skin.legend.b);
   }

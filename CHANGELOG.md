@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0-alpha.9 — 2026-11-18
+
+- Saving a zone map no longer replaces the player state and resets the
+  round-robin counter to zone one. Edits/Save preserve the current RR position
+  and active voices.
+- Added a live **PLAYING x / y** indicator and highlighted playing zone in the
+  zone map, plus a `ZONE x/y` badge on the Sample page.
+- Clarified the two mapping modes: FOLDER VEL follows velocity, FOLDER RR
+  cycles each hit.
+
 ## 0.9.0-alpha.8 — 2026-11-18
 
 - Added **Flip Phase** for the sample layer.

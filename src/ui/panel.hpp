@@ -36,6 +36,8 @@ struct PanelState {
   float compHistory[Shared::kScopeSize] = {};
   bool clipActive = false;
   int sampleVoices = 0;
+  int sampleZone = -1;
+  int sampleZoneCount = 0;
   bool sampleActive = false;
   float sampleRate = 48000.0f;
   float limitGrDb = 0.0f;

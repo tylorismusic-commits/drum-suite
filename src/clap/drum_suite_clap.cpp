@@ -862,6 +862,9 @@ clap_process_status pluginProcess(const clap_plugin_t* p, const clap_process_t* 
   s->shared.transientDb.store(s->meters.transientDb, std::memory_order_relaxed);
   s->shared.clipActive.store(s->meters.clipActive, std::memory_order_relaxed);
   s->shared.sampleVoices.store(s->meters.sampleVoices, std::memory_order_relaxed);
+  s->shared.sampleZone.store(s->meters.sampleZone, std::memory_order_relaxed);
+  s->shared.sampleZoneCount.store(s->meters.sampleZoneCount,
+                                  std::memory_order_relaxed);
   s->shared.sampleActive.store(
       s->meters.sampleVoices > 0 || s->meters.sampleTriggered,
       std::memory_order_relaxed);

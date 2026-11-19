@@ -65,6 +65,7 @@ public:
     instrument->name = instrument->zones.front().sample->name;
     instrument->path = instrument->zones.front().sample->path;
     setInstrument(std::move(instrument));
+    samplePlayer_.reset();
   }
 
   void setInstrument(std::shared_ptr<const Instrument> instrument) noexcept {

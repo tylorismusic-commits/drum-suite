@@ -312,6 +312,86 @@ int main() {
     assert(l[1] < -0.01f);
   }
 
+  {
+    // A 39-zone round-robin bank cycles through every zone.
+    auto inst = std::make_shared<drum::Instrument>();
+    for (int i = 0; i < 39; ++i) {
+      auto b = std::make_shared<drum::SampleBuffer>();
+      b->data.assign(100 + i, 0.1f);
+      b->sampleRate = 48000;
+      drum::Zone z;
+      z.sample = b;
+      z.seqLength = 39;
+      z.seqPosition = i + 1;
+      inst->zones.push_back(z);
+    }
+    drum::SamplePlayer p;
+    p.prepare(48000.0f);
+    p.setInstrument(inst);
+    drum::Controls c;
+    c.sampleOn = true;
+    c.sampleLevel = 100.0f;
+    c.sampleDirect = 0.0f;
+    c.sampleChoke = false;
+    c.sampleTrigger = 3;
+    c.sampleNote = 36;
+    c.sampleMidiNote = 36;
+    c.sampleMidiVelocity = 100;
+    c.sampleFadeMs = 0.1f;
+    std::vector<float> l(4), r(4);
+    std::vector<uint8_t> gate(4, 0);
+    drum::Meters m;
+    for (int i = 0; i < 5; ++i) {
+      c.sampleMidiTrigger = 1;
+      p.setControls(c);
+      p.process(l.data(), r.data(), gate.data(), 4, m);
+      assert(m.sampleZone == i);
+      assert(m.sampleZoneCount == 39);
+    }
+  }
+
+  {
+    // Replacing the instrument with an identical map (as Save does) must not
+    // reset the round-robin position.
+    auto inst = std::make_shared<drum::Instrument>();
+    for (int i = 0; i < 2; ++i) {
+      auto b = std::make_shared<drum::SampleBuffer>();
+      b->data.assign(100, 0.1f);
+      b->sampleRate = 48000;
+      drum::Zone z;
+      z.sample = b;
+      z.seqLength = 2;
+      z.seqPosition = i + 1;
+      inst->zones.push_back(z);
+    }
+    drum::SamplePlayer p;
+    p.prepare(48000.0f);
+    p.setInstrument(inst);
+    drum::Controls c;
+    c.sampleOn = true;
+    c.sampleLevel = 100.0f;
+    c.sampleDirect = 0.0f;
+    c.sampleChoke = false;
+    c.sampleTrigger = 3;
+    c.sampleNote = 36;
+    c.sampleMidiNote = 36;
+    c.sampleMidiVelocity = 100;
+    c.sampleFadeMs = 0.1f;
+    std::vector<float> l(4), r(4);
+    std::vector<uint8_t> gate(4, 0);
+    drum::Meters m;
+    c.sampleMidiTrigger = 1;
+    p.setControls(c);
+    p.process(l.data(), r.data(), gate.data(), 4, m);
+    assert(m.sampleZone == 0);
+    auto copy = std::make_shared<drum::Instrument>(*inst);
+    p.setInstrument(copy);
+    c.sampleMidiTrigger = 1;
+    p.setControls(c);
+    p.process(l.data(), r.data(), gate.data(), 4, m);
+    assert(m.sampleZone == 1);
+  }
+
   std::printf("drum_instrument: ok\n");
   return 0;
 }

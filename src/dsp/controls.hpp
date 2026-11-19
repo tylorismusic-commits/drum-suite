@@ -393,6 +393,8 @@ struct Meters {
   float gate = 1.0f;
   bool ghostActive = false;
   int sampleVoices = 0;
+  int sampleZone = -1;
+  int sampleZoneCount = 0;
   bool sampleTriggered = false;
   float compGrDb = 0.0f;
   bool clipActive = false;

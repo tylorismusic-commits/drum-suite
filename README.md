@@ -70,7 +70,10 @@ round-robin position/length and root note. **FOLDER VEL** and **FOLDER RR**
 rebuild the map from the current folder as velocity layers or round robins.
 **SLICE x4** detects four hits in the selected sample and creates four
 round-robin slices. Edits are written to `_drum_map.sfz` in the sample folder
-so they survive a session reload.
+so they survive a session reload. The map header shows **PLAYING x / y**, and
+the current zone is highlighted while it plays. **FOLDER VEL** follows hit
+strength (or MIDI velocity); **FOLDER RR** cycles one zone per hit. Saving a
+map no longer resets the round-robin position back to zone one.
 
 The player supports up to 32 voices, SFZ/SF2 key and velocity ranges, round
 robins (`seq_length`/`seq_position`), choke groups (`group`/`off_by`), stereo

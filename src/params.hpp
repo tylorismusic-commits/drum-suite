@@ -560,6 +560,8 @@ public:
   std::atomic<float> transientDb;
   std::atomic<bool> clipActive;
   std::atomic<int> sampleVoices;
+  std::atomic<int> sampleZone;
+  std::atomic<int> sampleZoneCount;
   std::atomic<bool> sampleActive;
   std::atomic<float> sampleRate;
   std::atomic<float> limitGrDb;
