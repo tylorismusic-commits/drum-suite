@@ -77,6 +77,7 @@ enum ParamId : uint32_t {
   P_TRANSIENT_SENS,
   P_SAMPLE_NOTE,
   P_SAMPLE_PHASE,
+  P_SAMPLE_RETRIGGER,
   P_COUNT
 };
 
@@ -244,6 +245,8 @@ inline constexpr ParamSpec kParamSpecs[P_COUNT] = {
      false, nullptr, {}},
     {"sample_phase", "Flip Phase", "Sample", 0.0, 1.0, 0.0, true, false, true,
      nullptr, {}},
+    {"sample_retrigger", "Retrigger", "Sample", 0.0, 500.0, 0.0, false, false,
+     false, "ms", {}},
 };
 
 static_assert(sizeof(kParamSpecs) / sizeof(kParamSpecs[0]) == P_COUNT,
@@ -678,6 +681,7 @@ inline Controls controlsFrom(Shared& s) noexcept {
   c.sampleMidiNote = s.midiSampleNote.load(std::memory_order_relaxed);
   c.sampleNote = static_cast<int>(s.get(P_SAMPLE_NOTE) + 0.5);
   c.samplePhase = s.get(P_SAMPLE_PHASE) > 0.5;
+  c.sampleRetriggerMs = static_cast<float>(s.get(P_SAMPLE_RETRIGGER));
   c.sampleMidiVelocity = s.midiSampleVelocity.load(std::memory_order_relaxed);
   c.transientOn = s.get(P_TRANSIENT_ON) > 0.5;
   c.transientAttack = static_cast<float>(s.get(P_TRANSIENT_ATTACK));

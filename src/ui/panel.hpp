@@ -49,6 +49,7 @@ struct PanelState {
   int sampleMode = 0;      // 0 files, 1 zone map
   int zoneSelected = 0;
   int zoneScroll = 0;
+  uint32_t pageLocks = 0;  // one bit per processing page
   int sampleScanTicks = 60;
 };
 
@@ -115,6 +116,7 @@ private:
     Guide,
     LoadFolder,
     Zones,
+    PageLock,
   };
 
   struct Widget {
@@ -150,6 +152,7 @@ private:
   void saveZoneMap(Shared& shared, PanelState& state);
   void loadFolderMap(Shared& shared, PanelState& state, bool roundRobin);
   void sliceSelectedZone(Shared& shared, PanelState& state);
+  void applyRecommended(Shared& shared, const PanelState& state);
   void drawEqPage(cairo_t* cr, const Shared& shared,
                   const PanelState& state) const;
   void drawCompPage(cairo_t* cr, const Shared& shared,
@@ -191,6 +194,7 @@ private:
   mutable std::vector<float> waveMax_;
   int dragParam_ = -1;
   int zoneDrag_ = -1;
+  bool zoneDragGraph_ = false;
   int dragSteps_ = 0;
   double dragStartY_ = 0.0;
   double dragStartValue_ = 0.0;

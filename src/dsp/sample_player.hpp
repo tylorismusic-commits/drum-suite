@@ -107,6 +107,8 @@ public:
     note_ = std::clamp(c.sampleNote, 0, 127);
     velocity_ = std::clamp(c.sampleMidiVelocity, 1, 127);
     phase_ = c.samplePhase ? -1.0f : 1.0f;
+    retriggerSamples_ = std::max(
+        0, static_cast<int>(c.sampleRetriggerMs * 0.001f * sr_));
     if (!on_) {
       pendingMidi_ = 0;
       if (!pending_.empty()) std::fill(pending_.begin(), pending_.end(), 0);
@@ -159,12 +161,16 @@ public:
       pendingPos_ = (pendingPos_ + 1) % pendingSize_;
       prevPeak_ = peak;
       if (due) {
-        triggerZones(dueKey, dueVel);
-        meters.sampleTriggered = true;
-        meters.sampleZone = lastZone_;
-        meters.sampleZoneCount =
-            instrument_ ? static_cast<int>(instrument_->zones.size()) : 0;
+        if (retriggerSamples_ <= 0 || retriggerCounter_ <= 0) {
+          triggerZones(dueKey, dueVel);
+          meters.sampleTriggered = true;
+          meters.sampleZone = lastZone_;
+          meters.sampleZoneCount =
+              instrument_ ? static_cast<int>(instrument_->zones.size()) : 0;
+          if (retriggerSamples_ > 0) retriggerCounter_ = retriggerSamples_;
+        }
       }
+      if (retriggerCounter_ > 0) --retriggerCounter_;
 
       left[i] *= direct_;
       right[i] *= direct_;
@@ -403,6 +409,8 @@ private:
   bool on_ = false;
   float level_ = 0.8f;
   float phase_ = 1.0f;
+  int retriggerSamples_ = 0;
+  int retriggerCounter_ = 0;
   float direct_ = 1.0f;
   float pitch_ = 0.0f;
   float start_ = 0.0f;

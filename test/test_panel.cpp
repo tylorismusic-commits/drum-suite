@@ -451,6 +451,14 @@ int main() {
     panel.pointerUp();
     check(state.zoneSelected == 1, "clicking a zone row selects it");
 
+    // The selected-zone graph lets start/end be dragged directly.
+    const int graphZone = state.zoneSelected;
+    const float graphBefore = shared.instrument()->zones[graphZone].start;
+    panel.pointerDown(shared, state, 760, 300, false);
+    panel.pointerUp();
+    check(shared.instrument()->zones[graphZone].start > graphBefore,
+          "zone graph drag edits the start line");
+
     // Start slider edits the selected zone.
     const float before = shared.instrument()->zones[1].start;
     panel.pointerDown(shared, state, 300, 500, false);
@@ -500,6 +508,31 @@ int main() {
     check(shared.instrument() &&
               shared.instrument()->path.find("Sub/Hit.wav") != std::string::npos,
           "a WAV inside a folder can be loaded");
+  }
+
+  {
+    Shared shared;
+    Panel panel;
+    PanelState state;
+    panel.draw(cr, shared, state);
+    shared.set(P_THRESHOLD, -50.0);
+    shared.set(P_EQ_LOW, 0.1);
+    const double eqBefore = shared.get(P_EQ_LOW);
+    panel.pointerDown(shared, state, 150, 80, false);  // lock page 0
+    panel.pointerUp();
+    check((state.pageLocks & 1u) != 0, "page lock toggles");
+    panel.pointerDown(shared, state, 926, 32, false);  // recommended
+    panel.pointerUp();
+    check(std::fabs(shared.get(P_THRESHOLD) + 50.0) < 1e-6,
+          "recommended leaves a locked page alone");
+    check(std::fabs(shared.get(P_EQ_LOW) - eqBefore) > 1e-6,
+          "recommended still updates unlocked pages");
+    panel.pointerDown(shared, state, 150, 80, false);  // unlock
+    panel.pointerUp();
+    panel.pointerDown(shared, state, 926, 32, false);
+    panel.pointerUp();
+    check(std::fabs(shared.get(P_THRESHOLD) + 30.0) < 1e-6,
+          "unlocking lets recommended update the page");
   }
 
   cairo_destroy(cr);

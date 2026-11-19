@@ -239,6 +239,35 @@ bool samePath(const std::string& a, const std::string& b) {
   return !ec && ca == cb;
 }
 
+int paramPage(uint32_t id) {
+  const std::string module = kParamSpecs[id].module ? kParamSpecs[id].module : "";
+  if (module == "Gate" || module == "Ghost" || module == "MIDI") return 0;
+  if (module == "Sample") return 1;
+  if (module == "EQ") return 2;
+  if (module == "Comp" || module == "Transient") return 3;
+  if (module == "Drive") return 4;
+  if (module == "Clip") return 5;
+  if (module == "Limit") return 6;
+  return -1;
+}
+
+void pageTabRect(int page, double* x, double* y, double* w, double* h) {
+  const double pageW = (980.0 - 6.0 * 6.0) / 7.0;
+  *x = 30.0 + page * (pageW + 6.0);
+  *y = 70.0;
+  *w = pageW;
+  *h = 34.0;
+}
+
+void pageLockRect(int page, double* x, double* y, double* w, double* h) {
+  double tx = 0, ty = 0, tw = 0, th = 0;
+  pageTabRect(page, &tx, &ty, &tw, &th);
+  *w = 16.0;
+  *h = 16.0;
+  *x = tx + tw - *w - 5.0;
+  *y = ty + 5.0;
+}
+
 double nowMs() {
   return std::chrono::duration<double, std::milli>(
              std::chrono::steady_clock::now().time_since_epoch())
@@ -511,6 +540,14 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
     t.label = kPageNames[i];
     widgets_.push_back(t);
   }
+  for (int i = 0; i < 7; ++i) {
+    Widget lock{};
+    lock.kind = Kind::PageLock;
+    lock.value = i;
+    pageLockRect(i, &lock.x, &lock.y, &lock.w, &lock.h);
+    lock.label = "LOCK";
+    widgets_.push_back(lock);
+  }
 
   // Drum selector row.
   const double tabW = (980.0 - 7.0 * 6.0) / 8.0;
@@ -606,6 +643,7 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
          sc(kSampleTriggerLabels), false, 4, 1.7);
     knob(P_SAMPLE_OFFSET, 820, 555, 26, "OFFSET");
     knob(P_SAMPLE_NOTE, 420, 575, 26, "MIDI NOTE");
+    knob(P_SAMPLE_RETRIGGER, 720, 500, 26, "RETRIG");
     {
       Widget load{};
       load.kind = Kind::LoadFolder;
@@ -751,6 +789,19 @@ bool Panel::hitWidget(const Widget& w, double x, double y) const {
   }
 }
 
+void Panel::applyRecommended(Shared& shared, const PanelState& state) {
+  const int drum = static_cast<int>(shared.get(P_DRUM) + 0.5);
+  double before[P_COUNT];
+  for (uint32_t i = 0; i < P_COUNT; ++i) before[i] = shared.get(i);
+  applyDrumDefaults(shared, drum);
+  for (uint32_t i = 0; i < P_COUNT; ++i) {
+    const int page = paramPage(i);
+    if (page >= 0 && (state.pageLocks & (1u << page)) != 0) {
+      shared.set(i, before[i]);
+    }
+  }
+}
+
 double Panel::presetResetValue(const PanelState& state, uint32_t param) const {
   double value = kParamSpecs[param].def;
   if (state.presetIndex >= 0 && state.presetIndex < kPresetCount) {
@@ -780,6 +831,14 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
   if (handlePresetClick(shared, state, x, y)) return true;
   if (state.page == 1 && state.sampleMode != 0) {
     return handleZoneOverlay(shared, state, x, y);
+  }
+  for (int page = 0; page < 7; ++page) {
+    double lx = 0, ly = 0, lw = 0, lh = 0;
+    pageLockRect(page, &lx, &ly, &lw, &lh);
+    if (x >= lx && x <= lx + lw && y >= ly && y <= ly + lh) {
+      state.pageLocks ^= (1u << page);
+      return true;
+    }
   }
   // Sample browser: directories first, then files.
   if (state.page == 1 && x >= 100 && x <= 480 && y >= 262 && y <= 480) {
@@ -858,8 +917,7 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
         return true;
       }
       case Kind::Guide:
-        applyDrumDefaults(shared,
-                          static_cast<int>(shared.get(P_DRUM) + 0.5));
+        applyRecommended(shared, state);
         state.presetDirty = true;
         return true;
       case Kind::Pill:
@@ -903,6 +961,13 @@ bool Panel::pointerDown(Shared& shared, PanelState& state, double x, double y,
 
 bool Panel::pointerMove(Shared& shared, PanelState& state, double x, double y,
                         bool fine) {
+  if (zoneDrag_ >= 0 && zoneDragGraph_) {
+    const double gx = 700.0, gw = 280.0;
+    const int cols = static_cast<int>(gw - 8);
+    const double f = std::clamp((x - (gx + 4)) / (cols - 1), 0.0, 1.0);
+    setZoneValue(shared, state, zoneDrag_, f);
+    return true;
+  }
   if (zoneDrag_ >= 0) {
     const double x1 = 110.0, x2 = 540.0, w = 380.0;
     const int field = zoneDrag_;
@@ -929,6 +994,7 @@ bool Panel::pointerMove(Shared& shared, PanelState& state, double x, double y,
 void Panel::pointerUp() {
   dragParam_ = -1;
   zoneDrag_ = -1;
+  zoneDragGraph_ = false;
 }
 
 bool Panel::wheel(Shared& shared, PanelState& state, double x, double y,
@@ -1419,7 +1485,7 @@ void Panel::drawZoneOverlay(cairo_t* cr, Shared& shared,
   button(510, 80, "SAVE");
   button(860, 100, "CLOSE");
 
-  const double tx = 80, ty = 160, tw = 880;
+  const double tx = 80, ty = 160, tw = 600;
   const int visible = 12;
   const int maxScroll = std::max(0, count - visible);
   const int scroll = std::clamp(state.zoneScroll, 0, maxScroll);
@@ -1428,11 +1494,10 @@ void Panel::drawZoneOverlay(cairo_t* cr, Shared& shared,
   cairo_fill(cr);
   text(cr, "#", tx + 10, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
   text(cr, "SAMPLE", tx + 40, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
-  text(cr, "VEL", tx + 370, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
-  text(cr, "RR", tx + 470, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
-  text(cr, "START", tx + 550, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
-  text(cr, "END", tx + 650, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
-  text(cr, "ROOT", tx + 750, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "VEL", tx + 250, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "RR", tx + 330, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "START", tx + 400, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
+  text(cr, "END", tx + 480, ty + 16, 8.5, 0, 0.55, 0.60, 0.66);
   for (int row = 0; row < visible; ++row) {
     const int index = scroll + row;
     if (index >= count) break;
@@ -1452,28 +1517,65 @@ void Panel::drawZoneOverlay(cairo_t* cr, Shared& shared,
     char buf[128];
     std::snprintf(buf, sizeof(buf), "%02d", index + 1);
     text(cr, buf, tx + 10, y + 15, 9, 0, 0.60, 0.64, 0.70);
-    text(cr, clippedName(z.sample ? z.sample->name : "-", 36).c_str(),
+    text(cr, clippedName(z.sample ? z.sample->name : "-", 28).c_str(),
          tx + 40, y + 15, 9, 0, 0.86, 0.88, 0.90);
     std::snprintf(buf, sizeof(buf), "%d-%d", z.lovel, z.hivel);
-    text(cr, buf, tx + 370, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    text(cr, buf, tx + 250, y + 15, 9, 0, 0.76, 0.80, 0.84);
     if (z.seqLength > 1) {
       std::snprintf(buf, sizeof(buf), "%d/%d", z.seqPosition, z.seqLength);
     } else {
       std::snprintf(buf, sizeof(buf), "-");
     }
-    text(cr, buf, tx + 470, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    text(cr, buf, tx + 330, y + 15, 9, 0, 0.76, 0.80, 0.84);
     std::snprintf(buf, sizeof(buf), "%.1f%%", z.start * 100.0f);
-    text(cr, buf, tx + 550, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    text(cr, buf, tx + 400, y + 15, 9, 0, 0.76, 0.80, 0.84);
     std::snprintf(buf, sizeof(buf), "%.1f%%", z.end * 100.0f);
-    text(cr, buf, tx + 650, y + 15, 9, 0, 0.76, 0.80, 0.84);
-    if (z.rootKey >= 0) {
-      std::snprintf(buf, sizeof(buf), "%s", noteName(z.rootKey).c_str());
-    } else {
-      std::snprintf(buf, sizeof(buf), "-");
-    }
-    text(cr, buf, tx + 750, y + 15, 9, 0, 0.76, 0.80, 0.84);
+    text(cr, buf, tx + 480, y + 15, 9, 0, 0.76, 0.80, 0.84);
   }
 
+  const double gx = 700, gy = 160, gw = 280, gh = 280;
+  roundRect(cr, gx, gy, gw, gh, 4);
+  setRgb(cr, {0.03, 0.035, 0.04}, 0.95);
+  cairo_fill(cr);
+  if (instrument && !instrument->zones.empty()) {
+    const int idx = std::clamp(state.zoneSelected, 0,
+                               static_cast<int>(instrument->zones.size()) - 1);
+    const Zone& selected = instrument->zones[static_cast<size_t>(idx)];
+    if (selected.sample && !selected.sample->data.empty()) {
+      const int cols = static_cast<int>(gw - 8);
+      updateWaveCache(selected.sample, cols);
+      const double cy = gy + gh * 0.5;
+      const double half = gh * 0.44;
+      setRgb(cr, skin.btnOn, 0.75);
+      cairo_set_line_width(cr, 1.0);
+      for (int x = 0; x < cols && x < static_cast<int>(waveMin_.size()); ++x) {
+        const double px = gx + 4 + x;
+        cairo_move_to(cr, px,
+                      cy - std::clamp(static_cast<double>(waveMax_[x]), -1.0, 1.0) * half);
+        cairo_line_to(cr, px,
+                      cy - std::clamp(static_cast<double>(waveMin_[x]), -1.0, 1.0) * half);
+        cairo_stroke(cr);
+      }
+      const double x0 = gx + 4 + selected.start * (cols - 1);
+      const double x1 = gx + 4 + selected.end * (cols - 1);
+      cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.35);
+      cairo_rectangle(cr, gx + 4, gy + 4, std::max(0.0, x0 - gx - 4), gh - 8);
+      cairo_fill(cr);
+      cairo_rectangle(cr, x1, gy + 4, std::max(0.0, gx + gw - 4 - x1), gh - 8);
+      cairo_fill(cr);
+      setRgb(cr, Rgb{0.35, 0.95, 0.45}, 0.95);
+      cairo_set_line_width(cr, 2.0);
+      cairo_move_to(cr, x0, gy + 4);
+      cairo_line_to(cr, x0, gy + gh - 4);
+      cairo_stroke(cr);
+      setRgb(cr, Rgb{0.95, 0.55, 0.35}, 0.95);
+      cairo_move_to(cr, x1, gy + 4);
+      cairo_line_to(cr, x1, gy + gh - 4);
+      cairo_stroke(cr);
+      text(cr, "START", x0 + 4, gy + 14, 7.5, 0, 0.45, 0.95, 0.55);
+      text(cr, "END", x1 - 4, gy + 14, 7.5, 2, 0.95, 0.55, 0.35);
+    }
+  }
   const Zone* zone = nullptr;
   if (instrument && !instrument->zones.empty()) {
     const int index = std::clamp(state.zoneSelected, 0,
@@ -1553,7 +1655,7 @@ bool Panel::handleZoneOverlay(Shared& shared, PanelState& state, double x,
     }
     return true;
   }
-  if (x >= 80 && x <= 960 && y >= 160 && y <= 160 + 24 + 12 * 22) {
+  if (x >= 80 && x <= 680 && y >= 160 && y <= 160 + 24 + 12 * 22) {
     if (y >= 184) {
       const int row = static_cast<int>((y - 184) / 22);
       const auto instrument = shared.instrument();
@@ -1567,6 +1669,23 @@ bool Panel::handleZoneOverlay(Shared& shared, PanelState& state, double x,
     }
     return true;
   }
+  const double gx = 700, gy = 160, gw = 280, gh = 280;
+  if (x >= gx && x <= gx + gw && y >= gy && y <= gy + gh) {
+    const auto instrument = shared.instrument();
+    if (instrument && !instrument->zones.empty()) {
+      const int idx = std::clamp(state.zoneSelected, 0,
+                                 static_cast<int>(instrument->zones.size()) - 1);
+      const Zone& z = instrument->zones[static_cast<size_t>(idx)];
+      const int cols = static_cast<int>(gw - 8);
+      const double x0 = gx + 4 + z.start * (cols - 1);
+      const double x1 = gx + 4 + z.end * (cols - 1);
+      zoneDrag_ = std::fabs(x - x0) <= std::fabs(x - x1) ? 0 : 1;
+      zoneDragGraph_ = true;
+      const double f = std::clamp((x - (gx + 4)) / (cols - 1), 0.0, 1.0);
+      setZoneValue(shared, state, zoneDrag_, f);
+    }
+    return true;
+  }
   const double xs[2] = {110, 540};
   const double ys[4] = {500, 540, 580, 620};
   for (int field = 0; field < 7; ++field) {
@@ -1576,6 +1695,7 @@ bool Panel::handleZoneOverlay(Shared& shared, PanelState& state, double x,
     const double sy = ys[row];
     if (y >= sy - 18 && y <= sy + 18 && x >= sx - 8 && x <= sx + 400) {
       zoneDrag_ = field;
+      zoneDragGraph_ = false;
       const double f = std::clamp((x - sx) / 380.0, 0.0, 1.0);
       setZoneValue(shared, state, field, f);
       return true;
@@ -2431,6 +2551,25 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
     case Kind::Zones:
       drawButton(cr, w, state.sampleMode != 0, drum);
       break;
+    case Kind::PageLock: {
+      const bool locked = (state.pageLocks & (1u << static_cast<int>(w.value))) != 0;
+      const double cx = w.x + w.w * 0.5;
+      const double cy = w.y + w.h * 0.5;
+      setRgb(cr, locked ? skin.btnOn : skin.legendDim, locked ? 1.0 : 0.55);
+      cairo_set_line_width(cr, 1.5);
+      cairo_arc(cr, cx, cy - 2.0, 3.5, 3.14159265, 2.0 * 3.14159265);
+      cairo_stroke(cr);
+      roundRect(cr, cx - 4.5, cy - 1.0, 9.0, 7.0, 1.5);
+      cairo_fill(cr);
+      if (!locked) {
+        setRgb(cr, skin.legendDim, 0.9);
+        cairo_set_line_width(cr, 1.0);
+        cairo_move_to(cr, cx - 4, cy + 6);
+        cairo_line_to(cr, cx + 4, cy + 6);
+        cairo_stroke(cr);
+      }
+      break;
+    }
     case Kind::Toggle:
       drawToggle(cr, w, shared.get(w.param) > 0.5, drum);
       break;
@@ -2998,6 +3137,7 @@ std::vector<Panel::WidgetRect> Panel::widgetRects() const {
   std::vector<WidgetRect> out;
   out.reserve(widgets_.size());
   for (const Widget& w : widgets_) {
+    if (w.kind == Kind::PageLock) continue;
     WidgetRect r;
     r.param = w.param;
     r.label = w.label;

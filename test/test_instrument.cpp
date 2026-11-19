@@ -392,6 +392,46 @@ int main() {
     assert(m.sampleZone == 1);
   }
 
+  {
+    // Retrigger lockout drops pulses inside the window and accepts the next.
+    auto inst = std::make_shared<drum::Instrument>();
+    for (int i = 0; i < 2; ++i) {
+      auto b = std::make_shared<drum::SampleBuffer>();
+      b->data.assign(4, 0.1f);
+      b->sampleRate = 48000;
+      drum::Zone z;
+      z.sample = b;
+      z.seqLength = 2;
+      z.seqPosition = i + 1;
+      inst->zones.push_back(z);
+    }
+    drum::SamplePlayer p;
+    p.prepare(48000.0f);
+    p.setInstrument(inst);
+    drum::Controls c;
+    c.sampleOn = true;
+    c.sampleLevel = 100.0f;
+    c.sampleDirect = 0.0f;
+    c.sampleChoke = false;
+    c.sampleTrigger = 3;
+    c.sampleNote = 36;
+    c.sampleMidiNote = 36;
+    c.sampleMidiVelocity = 100;
+    c.sampleFadeMs = 0.1f;
+    c.sampleRetriggerMs = 10.0f;
+    std::vector<float> l(600), r(600);
+    std::vector<uint8_t> gate(600, 0);
+    drum::Meters m;
+    c.sampleMidiTrigger = 2;
+    p.setControls(c);
+    p.process(l.data(), r.data(), gate.data(), 600, m);
+    assert(m.sampleZone == 0);
+    c.sampleMidiTrigger = 1;
+    p.setControls(c);
+    p.process(l.data(), r.data(), gate.data(), 600, m);
+    assert(m.sampleZone == 1);
+  }
+
   std::printf("drum_instrument: ok\n");
   return 0;
 }

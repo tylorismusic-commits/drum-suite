@@ -79,6 +79,11 @@ inline std::string formatParamValue(const Shared& shared, uint32_t id,
   }
   char buf[64];
   if (s.toggled) return value > 0.5 ? "On" : "Off";
+  if (id == P_SAMPLE_RETRIGGER) {
+    if (value <= 0.5) return "Off";
+    std::snprintf(buf, sizeof(buf), "%.0f ms", value);
+    return buf;
+  }
   if (id == P_SAMPLE_NOTE) {
     return noteName(static_cast<int>(std::lround(value)));
   }
@@ -182,6 +187,12 @@ inline bool parseParamValue(const Shared& shared, uint32_t id,
   }
   if (text == "on" || text == "true" || text == "yes") { *out = 1.0; return true; }
   if (text == "off" || text == "false" || text == "no") { *out = 0.0; return true; }
+  if (id == P_SAMPLE_RETRIGGER) {
+    if (text == "off" || text == "none") {
+      *out = 0.0;
+      return true;
+    }
+  }
   if (id == P_SAMPLE_NOTE) {
     int note = 0;
     if (parseNoteName(text, &note)) {

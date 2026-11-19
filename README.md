@@ -61,6 +61,9 @@ the sample folder. Relative SFZ sample paths are preserved; name collisions get
 a `(2)` suffix, and a file called `instrument.sfz` is renamed from its parent
 folder so TCI packs do not overwrite each other.
 
+Each page tab has a lock icon. Lock a page and **RECOMMENDED** leaves that
+page's settings untouched while updating the unlocked pages.
+
 The browser shows folders first; click a folder to enter it, `..` to go back.
 `.wav`, `.flac`, `.sfz` and `.sf2` files can be loaded. **LOAD ALL WAVS** maps
 the current folder as velocity layers; **ZONES** opens the full map editor.
@@ -68,8 +71,9 @@ the current folder as velocity layers; **ZONES** opens the full map editor.
 The zone map lists every region and lets you edit start/end, velocity range,
 round-robin position/length and root note. **FOLDER VEL** and **FOLDER RR**
 rebuild the map from the current folder as velocity layers or round robins.
-**SLICE x4** detects four hits in the selected sample and creates four
-round-robin slices. Edits are written to `_drum_map.sfz` in the sample folder
+The selected zone has a waveform view with draggable **START** and **END**
+lines, plus the same values as sliders. **SLICE x4** detects four hits in the
+selected sample and creates four round-robin slices. Edits are written to `_drum_map.sfz` in the sample folder
 so they survive a session reload. The map header shows **PLAYING x / y**, and
 the current zone is highlighted while it plays. **FOLDER VEL** follows hit
 strength (or MIDI velocity); **FOLDER RR** cycles one zone per hit. Saving a
@@ -83,6 +87,8 @@ as a one-shot. Audio gate triggers are edge-detected, so a held gate fires once
 instead of retriggering every sample.
 
 - **Flip Phase** inverts the sample layer without touching the direct signal.
+- **Retrigger** sets a hold-off from Off to 500 ms so one hit cannot retrigger
+  the sample inside that window.
 - **MIDI Note** picks the note that triggers this instance. The default follows
   the drum tab using the GM map: Kick C1 (36), Snare D1 (38), Tom A1 (45),
   Hat F#1 (42), Ride D#2 (51), Room F1 (41), OH C#2 (49), Bus C1 (36).

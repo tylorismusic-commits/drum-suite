@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0-alpha.10 — 2026-11-19
+
+- Per-page lock icons: RECOMMENDED skips locked pages and updates the rest.
+- Zone map: selected-zone waveform with draggable START/END lines, matching the
+  single-hit view.
+- Added a RETRIGGER control from Off to 500 ms; pulses inside the window are
+  ignored.
+- Edits/Save preserve the round-robin position and active voices.
+
 ## 0.9.0-alpha.9 — 2026-11-18
 
 - Saving a zone map no longer replaces the player state and resets the

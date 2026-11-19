@@ -803,8 +803,19 @@
         pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
     ] ,
     [
-        a lv2:OutputPort , lv2:ControlPort ;
+        a lv2:InputPort , lv2:ControlPort ;
         lv2:index 68 ;
+        lv2:symbol "sample_retrigger" ;
+        lv2:name "Retrigger" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 500 ;
+        units:unit units:ms ;
+        pg:group <https://github.com/tylorismusic-commits/drum-suite#sample> ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 69 ;
         lv2:symbol "in_peak_l" ;
         lv2:name "Input Peak Left" ;
         lv2:default 0 ;
@@ -815,7 +826,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 69 ;
+        lv2:index 70 ;
         lv2:symbol "in_peak_r" ;
         lv2:name "Input Peak Right" ;
         lv2:default 0 ;
@@ -826,7 +837,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 70 ;
+        lv2:index 71 ;
         lv2:symbol "out_peak_l" ;
         lv2:name "Output Peak Left" ;
         lv2:default 0 ;
@@ -837,7 +848,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 71 ;
+        lv2:index 72 ;
         lv2:symbol "out_peak_r" ;
         lv2:name "Output Peak Right" ;
         lv2:default 0 ;
@@ -848,7 +859,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 72 ;
+        lv2:index 73 ;
         lv2:symbol "in_peak" ;
         lv2:name "Input Peak" ;
         lv2:default 0 ;
@@ -859,7 +870,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 73 ;
+        lv2:index 74 ;
         lv2:symbol "out_peak" ;
         lv2:name "Output Peak" ;
         lv2:default 0 ;
@@ -870,7 +881,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 74 ;
+        lv2:index 75 ;
         lv2:symbol "gr" ;
         lv2:name "Gain Reduction" ;
         lv2:default 0 ;
@@ -881,7 +892,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 75 ;
+        lv2:index 76 ;
         lv2:symbol "detector" ;
         lv2:name "Detector" ;
         lv2:default 0 ;
@@ -892,7 +903,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 76 ;
+        lv2:index 77 ;
         lv2:symbol "comp_gr" ;
         lv2:name "Compressor Gain Reduction" ;
         lv2:default 0 ;
@@ -903,7 +914,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 77 ;
+        lv2:index 78 ;
         lv2:symbol "limit_gr" ;
         lv2:name "Limiter Gain Reduction" ;
         lv2:default 0 ;
@@ -914,7 +925,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 78 ;
+        lv2:index 79 ;
         lv2:symbol "gate" ;
         lv2:name "Gate" ;
         lv2:default 1 ;
@@ -925,7 +936,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 79 ;
+        lv2:index 80 ;
         lv2:symbol "ghost_active" ;
         lv2:name "Ghost Active" ;
         lv2:default 0 ;
@@ -937,7 +948,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 80 ;
+        lv2:index 81 ;
         lv2:symbol "clip_active" ;
         lv2:name "Clip Active" ;
         lv2:default 0 ;
@@ -949,7 +960,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 81 ;
+        lv2:index 82 ;
         lv2:symbol "sample_voices" ;
         lv2:name "Sample Voices" ;
         lv2:default 0 ;
@@ -961,7 +972,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 82 ;
+        lv2:index 83 ;
         lv2:symbol "sample_active" ;
         lv2:name "Sample Active" ;
         lv2:default 0 ;
@@ -973,7 +984,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 83 ;
+        lv2:index 84 ;
         lv2:symbol "sample_rate" ;
         lv2:name "Sample Rate" ;
         lv2:default 48000 ;
@@ -984,7 +995,7 @@
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 84 ;
+        lv2:index 85 ;
         lv2:symbol "latency" ;
         lv2:name "Latency" ;
         lv2:default 0 ;
@@ -996,7 +1007,7 @@
     ] ,
     [
         a atom:AtomPort , lv2:InputPort ;
-        lv2:index 85 ;
+        lv2:index 86 ;
         lv2:symbol "midi_in" ;
         lv2:name "MIDI In" ;
         atom:bufferType atom:Sequence ;
