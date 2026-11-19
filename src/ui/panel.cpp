@@ -123,6 +123,101 @@ std::vector<std::string> listSampleFiles(const std::string& dir) {
   return names;
 }
 
+bool isInside(const std::filesystem::path& child,
+              const std::filesystem::path& parent) {
+  std::error_code ec;
+  const auto c = std::filesystem::weakly_canonical(child, ec);
+  if (ec) return false;
+  const auto p = std::filesystem::weakly_canonical(parent, ec);
+  if (ec) return false;
+  auto ci = c.begin();
+  for (auto pi = p.begin(); pi != p.end(); ++pi, ++ci) {
+    if (ci == c.end() || *ci != *pi) return false;
+  }
+  return true;
+}
+
+std::filesystem::path uniqueDestination(const std::filesystem::path& dir,
+                                        const std::string& filename) {
+  std::filesystem::path candidate = dir / filename;
+  if (!std::filesystem::exists(candidate)) return candidate;
+  const std::filesystem::path src(filename);
+  const std::string stem = src.stem().string();
+  const std::string ext = src.extension().string();
+  for (int i = 2; i < 1000; ++i) {
+    candidate = dir / (stem + " (" + std::to_string(i) + ")" + ext);
+    if (!std::filesystem::exists(candidate)) return candidate;
+  }
+  return dir / filename;
+}
+
+bool copyFileToSamples(const std::filesystem::path& src,
+                       const std::filesystem::path& destDir,
+                       std::filesystem::path* copied) {
+  std::error_code ec;
+  const auto canonicalSrc = std::filesystem::weakly_canonical(src, ec);
+  if (ec) return false;
+  const auto canonicalDest = std::filesystem::weakly_canonical(destDir, ec);
+  if (!ec && canonicalSrc.parent_path() == canonicalDest) {
+    if (copied) *copied = canonicalSrc;
+    return true;
+  }
+  std::string name = src.filename().string();
+  std::string stem = src.stem().string();
+  if (stem == "instrument" && !src.parent_path().filename().empty()) {
+    name = src.parent_path().filename().string() + "_instrument" +
+           src.extension().string();
+  }
+  const auto target = uniqueDestination(destDir, name);
+  std::filesystem::create_directories(destDir, ec);
+  ec.clear();
+  if (!std::filesystem::copy_file(src, target,
+                                  std::filesystem::copy_options::none, ec) ||
+      ec) {
+    return false;
+  }
+  if (copied) *copied = target;
+  return true;
+}
+
+int copyDirectoryContents(const std::filesystem::path& src,
+                          const std::filesystem::path& destDir,
+                          const std::filesystem::path& skip = {}) {
+  std::error_code ec;
+  if (!std::filesystem::is_directory(src, ec)) return 0;
+  if (isInside(src, destDir) || isInside(destDir, src)) return 0;
+  std::filesystem::create_directories(destDir, ec);
+  int copied = 0;
+  int seen = 0;
+  for (auto it = std::filesystem::recursive_directory_iterator(
+           src, std::filesystem::directory_options::skip_permission_denied, ec);
+       it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+    if (ec) break;
+    if (++seen > 20000) break;
+    if (!it->is_regular_file(ec) || ec) continue;
+    if (!skip.empty() &&
+        std::filesystem::equivalent(it->path(), skip, ec) && !ec) {
+      ec.clear();
+      continue;
+    }
+    ec.clear();
+    const auto rel = std::filesystem::relative(it->path(), src, ec);
+    if (ec || rel.empty()) continue;
+    const auto target = destDir / rel;
+    std::filesystem::create_directories(target.parent_path(), ec);
+    ec.clear();
+    if (std::filesystem::exists(target, ec)) continue;
+    ec.clear();
+    if (std::filesystem::copy_file(it->path(), target,
+                                   std::filesystem::copy_options::none, ec) &&
+        !ec) {
+      ++copied;
+    }
+    ec.clear();
+  }
+  return copied;
+}
+
 double nowMs() {
   return std::chrono::duration<double, std::milli>(
              std::chrono::steady_clock::now().time_since_epoch())
@@ -2330,6 +2425,90 @@ bool Panel::loadSample(Shared& shared, PanelState& state,
   shared.set(P_SAMPLE_ON, 1.0);
   state.presetDirty = true;
   return true;
+}
+
+bool Panel::importDroppedFile(Shared& shared, PanelState& state,
+                              const std::string& path) {
+  return importDroppedFiles(shared, state, {path});
+}
+
+bool Panel::importDroppedFiles(Shared& shared, PanelState& state,
+                               const std::vector<std::string>& paths) {
+  namespace fs = std::filesystem;
+  const fs::path dest = sampleDir();
+  std::error_code ec;
+  fs::create_directories(dest, ec);
+  int copied = 0;
+  int loadable = 0;
+  bool ok = false;
+  fs::path toLoad;
+  for (const std::string& raw : paths) {
+    const fs::path src(raw);
+    if (src.empty()) continue;
+    if (fs::is_directory(src, ec)) {
+      const int n = copyDirectoryContents(src, dest);
+      copied += n;
+      if (n > 0) ok = true;
+      // A pack folder usually has its SFZ at the root.
+      for (const auto& entry :
+           fs::directory_iterator(src, fs::directory_options::skip_permission_denied,
+                                  ec)) {
+        if (ec) break;
+        if (!entry.is_regular_file(ec) || ec) continue;
+        std::string ext = entry.path().extension().string();
+        for (char& c : ext) {
+          c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        if (ext == ".sfz" || ext == ".sf2") {
+          const fs::path candidate = dest / entry.path().filename();
+          if (fs::exists(candidate, ec)) {
+            toLoad = candidate;
+            ++loadable;
+            ok = true;
+            break;
+          }
+        }
+      }
+      continue;
+    }
+    if (!fs::is_regular_file(src, ec) || ec) continue;
+    std::string ext = src.extension().string();
+    for (char& c : ext) {
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    if (ext != ".wav" && ext != ".sfz" && ext != ".sf2") continue;
+    if (ext == ".sfz") {
+      // Bring the SFZ's samples along, preserving relative paths.  Skip the
+      // SFZ itself so the copy below can disambiguate packs whose file is
+      // called instrument.sfz.
+      const int n = copyDirectoryContents(src.parent_path(), dest, src);
+      copied += n;
+      if (n > 0) ok = true;
+      fs::path out;
+      if (copyFileToSamples(src, dest, &out)) {
+        ++copied;
+        ok = true;
+        toLoad = out;
+        ++loadable;
+      }
+      continue;
+    }
+    fs::path out;
+    if (copyFileToSamples(src, dest, &out)) {
+      ++copied;
+      ok = true;
+      toLoad = out;
+      ++loadable;
+    }
+  }
+  state.sampleFiles = listSampleFiles(dest.string());
+  state.sampleScroll = 0;
+  state.page = 1;
+  if (loadable == 1 && !toLoad.empty()) {
+    loadSample(shared, state, toLoad.string());
+  }
+  if (copied > 0) state.presetDirty = true;
+  return ok;
 }
 
 bool Panel::handlePresetClick(Shared& shared, PanelState& state, double x,

@@ -89,6 +89,11 @@ public:
   };
   std::vector<WidgetRect> widgetRects() const;
 
+  bool importDroppedFile(Shared& shared, PanelState& state,
+                         const std::string& path);
+  bool importDroppedFiles(Shared& shared, PanelState& state,
+                          const std::vector<std::string>& paths);
+
 private:
   enum class Kind {
     Knob,

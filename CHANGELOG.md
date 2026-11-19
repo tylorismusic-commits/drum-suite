@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0-alpha.6 — 2026-11-18
+
+- Drag and drop: WAV, SFZ, SF2 files and folders are copied into
+  `~/.local/share/drum-suite/samples` (or `$XDG_DATA_HOME/drum-suite/samples`).
+- SFZ drops copy the referenced samples with their relative paths; TCI-style
+  `instrument.sfz` packs are renamed from their folder.
+- Duplicate file names get a numeric suffix instead of overwriting.
+- The sample browser refreshes and the dropped instrument loads immediately.
+- Added drop tests for SFZ packs, WAVs, folders and name collisions.
+
 ## 0.9.0-alpha.5 — 2026-11-18
 
 - Sample page now loads multisample instruments: WAV, SFZ, SF2/SF3 and whole

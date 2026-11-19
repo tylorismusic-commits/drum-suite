@@ -56,6 +56,11 @@ or stereo WAV files, SFZ instruments, or SF2 soundfonts in:
 ~/.local/share/drum-suite/samples
 ```
 
+Drag WAV, SFZ or SF2 files, or a folder, onto the plug-in to copy them into
+the sample folder. Relative SFZ sample paths are preserved; name collisions get
+a `(2)` suffix, and a file called `instrument.sfz` is renamed from its parent
+folder so TCI packs do not overwrite each other.
+
 Click a file in the page to load it. **LOAD ALL WAVS** turns every WAV in the
 folder into a velocity-layered instrument, sorted by peak unless the filenames
 carry `V01`/`RR1` tags. The list refreshes while the editor is open.

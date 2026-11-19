@@ -342,6 +342,80 @@ int main() {
     check(notes, "each drum tab picks its GM sample note");
   }
 
+  {
+    const std::filesystem::path root = "/tmp/opencode/drum_drop_test";
+    std::error_code ec;
+    std::filesystem::remove_all(root, ec);
+    std::filesystem::create_directories(root / "data/drum-suite/samples", ec);
+    std::filesystem::create_directories(root / "pack/samples", ec);
+    setenv("XDG_DATA_HOME", (root / "data").string().c_str(), 1);
+    writeTestWav(root / "pack/samples/Hit.wav");
+    {
+      std::ofstream sfz(root / "pack/Kit.sfz");
+      sfz << "<group> key=36 pitch_keycenter=36 lovel=0 hivel=127\n";
+      sfz << "<region> sample=samples/Hit.wav\n";
+    }
+    writeTestWav(root / "Loose.wav");
+    std::filesystem::create_directories(root / "folder", ec);
+    writeTestWav(root / "folder/A.wav");
+    writeTestWav(root / "folder/B.wav");
+
+    Shared shared;
+    Panel panel;
+    PanelState state;
+    panel.draw(cr, shared, state);
+
+    check(panel.importDroppedFiles(
+              shared, state, {(root / "pack/Kit.sfz").string()}),
+          "dropping an SFZ imports it");
+    const auto dest = root / "data/drum-suite/samples";
+    check(std::filesystem::exists(dest / "Kit.sfz"),
+          "SFZ is copied into the sample folder");
+    check(std::filesystem::exists(dest / "samples/Hit.wav"),
+          "SFZ samples are copied with their relative path");
+    check(shared.instrument() && shared.instrument()->zones.size() == 1,
+          "imported SFZ is loaded");
+    check(state.page == 1 && !state.sampleFiles.empty(),
+          "sample browser refreshes on drop");
+
+    check(panel.importDroppedFiles(shared, state,
+                                   {(root / "Loose.wav").string()}),
+          "dropping a WAV imports it");
+    check(std::filesystem::exists(dest / "Loose.wav"),
+          "WAV is copied into the sample folder");
+    check(panel.importDroppedFiles(shared, state,
+                                   {(root / "Loose.wav").string()}) &&
+              std::filesystem::exists(dest / "Loose (2).wav"),
+          "duplicate WAV names get a numeric suffix");
+
+    check(panel.importDroppedFiles(shared, state,
+                                   {(root / "folder").string()}),
+          "dropping a folder imports its contents");
+    check(std::filesystem::exists(dest / "A.wav") &&
+              std::filesystem::exists(dest / "B.wav"),
+          "folder contents are copied into the sample folder");
+
+    check(panel.importDroppedFiles(
+              shared, state, {(root / "pack/Kit.sfz").string()}),
+          "dropping the same SFZ again still succeeds");
+    check(std::filesystem::exists(dest / "Kit (2).sfz"),
+          "duplicate SFZ names get a numeric suffix");
+
+    // TCI-style packs call their file instrument.sfz; use the mic folder name.
+    std::filesystem::create_directories(root / "Z3/samples", ec);
+    writeTestWav(root / "Z3/samples/Z3Hit.wav");
+    {
+      std::ofstream sfz(root / "Z3/instrument.sfz");
+      sfz << "<region> sample=samples/Z3Hit.wav\n";
+    }
+    check(panel.importDroppedFiles(
+              shared, state, {(root / "Z3/instrument.sfz").string()}),
+          "dropping an instrument.sfz pack imports it");
+    check(std::filesystem::exists(dest / "Z3_instrument.sfz") &&
+              std::filesystem::exists(dest / "samples/Z3Hit.wav"),
+          "instrument.sfz is renamed from its folder and samples copied");
+  }
+
   cairo_destroy(cr);
   cairo_surface_destroy(surf);
   std::printf("%d failure(s)\n", gFailures);
