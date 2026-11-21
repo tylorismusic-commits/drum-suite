@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "dsp/atomic_shared.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -580,7 +582,7 @@ public:
   std::atomic<float> scopeIn[kScopeSize];
   std::atomic<float> scopeGate[kScopeSize];
   std::atomic<int> scopeHead;
-  std::atomic<std::shared_ptr<const Instrument>> instrument_;
+  AtomicSharedPtr<const Instrument> instrument_;
 
 private:
   std::atomic<double> values_[P_COUNT];
