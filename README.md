@@ -1,6 +1,6 @@
 # Drum Suite
 
-**Version 0.9.0-alpha.11 — Linux x86_64** · GPL-3.0-or-later
+**Version 0.9.0-alpha.12 — Linux x86_64** · GPL-3.0-or-later
 
 > **Public alpha.** The full seven-page chain is usable, but factory presets
 > and final tuning are planned after feedback. Expect parameter/preset changes;

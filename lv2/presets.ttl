@@ -39,6 +39,10 @@
     a pset:Bank ;
     rdfs:label "Bus" .
 
+<https://github.com/tylorismusic-commits/drum-suite#bank_user>
+    a pset:Bank ;
+    rdfs:label "User" .
+
 <https://github.com/tylorismusic-commits/drum-suite#preset_init>
     a pset:Preset ;
     lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
@@ -402,4 +406,77 @@
     [ lv2:symbol "clip_auto_gain" ; pset:value 1 ] ,
     [ lv2:symbol "limit_on" ; pset:value 1 ] ,
     [ lv2:symbol "limit_ceiling" ; pset:value 0.967 ] .
+
+<https://github.com/tylorismusic-commits/drum-suite#preset_drum-bus-enhancer>
+    a pset:Preset ;
+    lv2:appliesTo <https://github.com/tylorismusic-commits/drum-suite> ;
+    rdfs:label "Drum Bus Enhancer" ;
+    rdfs:comment "User" ;
+    pset:bank <https://github.com/tylorismusic-commits/drum-suite#bank_user> ;
+    lv2:port
+    [ lv2:symbol "power" ; pset:value 1 ] ,
+    [ lv2:symbol "bypass" ; pset:value 0 ] ,
+    [ lv2:symbol "input" ; pset:value 0 ] ,
+    [ lv2:symbol "output" ; pset:value -0.9 ] ,
+    [ lv2:symbol "drum" ; pset:value 7 ] ,
+    [ lv2:symbol "gate_on" ; pset:value 0 ] ,
+    [ lv2:symbol "threshold" ; pset:value -40 ] ,
+    [ lv2:symbol "debleed" ; pset:value 0 ] ,
+    [ lv2:symbol "ghost_mode" ; pset:value 0 ] ,
+    [ lv2:symbol "ghost" ; pset:value 50 ] ,
+    [ lv2:symbol "ghost_note" ; pset:value 38 ] ,
+    [ lv2:symbol "ghost_cc" ; pset:value 74 ] ,
+    [ lv2:symbol "sample_on" ; pset:value 0 ] ,
+    [ lv2:symbol "sample_level" ; pset:value 70 ] ,
+    [ lv2:symbol "sample_direct" ; pset:value 100 ] ,
+    [ lv2:symbol "sample_pitch" ; pset:value 0 ] ,
+    [ lv2:symbol "sample_start" ; pset:value 0 ] ,
+    [ lv2:symbol "sample_reverse" ; pset:value 0 ] ,
+    [ lv2:symbol "sample_choke" ; pset:value 1 ] ,
+    [ lv2:symbol "sample_fade" ; pset:value 5 ] ,
+    [ lv2:symbol "sample_trigger" ; pset:value 0 ] ,
+    [ lv2:symbol "eq_low" ; pset:value 0.52 ] ,
+    [ lv2:symbol "eq_low_mid" ; pset:value 0.5 ] ,
+    [ lv2:symbol "eq_high_mid" ; pset:value 0.51 ] ,
+    [ lv2:symbol "eq_high" ; pset:value 0.54 ] ,
+    [ lv2:symbol "eq_hpf" ; pset:value 0.05 ] ,
+    [ lv2:symbol "eq_lpf" ; pset:value 0.95 ] ,
+    [ lv2:symbol "comp_on" ; pset:value 0 ] ,
+    [ lv2:symbol "comp_model" ; pset:value 2 ] ,
+    [ lv2:symbol "comp_threshold" ; pset:value -20 ] ,
+    [ lv2:symbol "comp_ratio" ; pset:value 3 ] ,
+    [ lv2:symbol "comp_attack" ; pset:value 0.8 ] ,
+    [ lv2:symbol "comp_release" ; pset:value 0.3 ] ,
+    [ lv2:symbol "comp_makeup" ; pset:value 0.4 ] ,
+    [ lv2:symbol "comp_mix" ; pset:value 1 ] ,
+    [ lv2:symbol "comp_sc_hpf" ; pset:value 0.7 ] ,
+    [ lv2:symbol "drive_on" ; pset:value 1 ] ,
+    [ lv2:symbol "drive_model" ; pset:value 2 ] ,
+    [ lv2:symbol "drive_drive" ; pset:value 0.285 ] ,
+    [ lv2:symbol "drive_character" ; pset:value 0.55 ] ,
+    [ lv2:symbol "drive_tone" ; pset:value 0.5 ] ,
+    [ lv2:symbol "drive_mix" ; pset:value 0.3 ] ,
+    [ lv2:symbol "drive_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_on" ; pset:value 1 ] ,
+    [ lv2:symbol "clip_drive" ; pset:value 0.22 ] ,
+    [ lv2:symbol "clip_ceiling" ; pset:value 0.85 ] ,
+    [ lv2:symbol "clip_shape" ; pset:value 2 ] ,
+    [ lv2:symbol "clip_mix" ; pset:value 0.3 ] ,
+    [ lv2:symbol "clip_oversample" ; pset:value 2 ] ,
+    [ lv2:symbol "clip_auto_gain" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_on" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_ceiling" ; pset:value 0.95 ] ,
+    [ lv2:symbol "limit_release" ; pset:value 0.6 ] ,
+    [ lv2:symbol "limit_lookahead" ; pset:value 0.5 ] ,
+    [ lv2:symbol "limit_true_peak" ; pset:value 1 ] ,
+    [ lv2:symbol "limit_mix" ; pset:value 1 ] ,
+    [ lv2:symbol "sample_sensitivity" ; pset:value 0.5 ] ,
+    [ lv2:symbol "sample_offset" ; pset:value 0 ] ,
+    [ lv2:symbol "transient_on" ; pset:value 1 ] ,
+    [ lv2:symbol "transient_attack" ; pset:value 15 ] ,
+    [ lv2:symbol "transient_sustain" ; pset:value 5 ] ,
+    [ lv2:symbol "transient_sens" ; pset:value 50 ] ,
+    [ lv2:symbol "sample_note" ; pset:value 36 ] ,
+    [ lv2:symbol "sample_phase" ; pset:value 0 ] ,
+    [ lv2:symbol "sample_retrigger" ; pset:value 0 ] .
 

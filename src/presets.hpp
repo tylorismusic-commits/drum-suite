@@ -133,6 +133,20 @@ inline constexpr PresetValue kBusFullGlue[] = {
 
 #undef PV
 
+// converted from the user preset "Drum Bus Enhancer"
+inline constexpr PresetValue kUserDrumBusEnhancer[] = {
+    {0, 1}, {1, 0}, {2, 0}, {3, -0.9}, {4, 7}, {5, 0}, {6, -40}, {7, 0}, {8, 0}, {9, 50},
+    {10, 38}, {11, 74}, {12, 0}, {13, 70}, {14, 100}, {15, 0}, {16, 0}, {17, 0}, {18, 1},
+    {19, 5}, {20, 0}, {21, 0.519999981}, {22, 0.5}, {23, 0.50999999}, {24, 0.540000021},
+    {25, 0.0500000007}, {26, 0.949999988}, {27, 0}, {28, 2}, {29, -20}, {30, 3},
+    {31, 0.800000012}, {32, 0.300000012}, {33, 0.400000006}, {34, 1}, {35, 0.699999988},
+    {36, 1}, {37, 2}, {38, 0.284999988}, {39, 0.550000012}, {40, 0.5}, {41, 0.300000012},
+    {42, 1}, {43, 1}, {44, 0.220000006}, {45, 0.850000024}, {46, 2}, {47, 0.300000012},
+    {48, 2}, {49, 1}, {50, 1}, {51, 0.949999988}, {52, 0.600000024}, {53, 0.5}, {54, 1},
+    {55, 1}, {56, 0.5}, {57, 0}, {58, 1}, {59, 15}, {60, 5}, {61, 50}, {62, 36}, {63, 0},
+    {64, 0}
+};
+
 inline constexpr Preset kPresets[] = {
     {"Init", "Init", 0, kInit, static_cast<int>(sizeof(kInit) / sizeof(kInit[0]))},
     {"Kick", "Kick — Tight", 0, kKickTight, static_cast<int>(sizeof(kKickTight) / sizeof(kKickTight[0]))},
@@ -151,6 +165,7 @@ inline constexpr Preset kPresets[] = {
     {"Hats", "Hat — Bright", 3, kHatBright, static_cast<int>(sizeof(kHatBright) / sizeof(kHatBright[0]))},
     {"Room", "Room — Crunch", 5, kRoomCrunch, static_cast<int>(sizeof(kRoomCrunch) / sizeof(kRoomCrunch[0]))},
     {"Bus", "Bus — Full Glue", 7, kBusFullGlue, static_cast<int>(sizeof(kBusFullGlue) / sizeof(kBusFullGlue[0]))},
+    {"User", "Drum Bus Enhancer", 7, kUserDrumBusEnhancer, static_cast<int>(sizeof(kUserDrumBusEnhancer) / sizeof(kUserDrumBusEnhancer[0]))},
 };
 
 inline constexpr int kPresetCount = static_cast<int>(sizeof(kPresets) / sizeof(kPresets[0]));

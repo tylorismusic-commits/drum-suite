@@ -128,6 +128,7 @@ int main(int argc, char** argv) {
 
     PanelState state;
     state.page = page;
+    if (std::getenv("DRUM_PREVIEW_LOCKS")) state.pageLocks = 0xFF;
     for (int i = 0; i < 8; ++i) panel.tick(shared, state);
     cairo_surface_t* surface =
         cairo_image_surface_create(CAIRO_FORMAT_ARGB32, size.width, size.height);

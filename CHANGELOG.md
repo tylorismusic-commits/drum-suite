@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0-alpha.12 — 2026-11-20
+
+- Fix a stray hairline across the page-tab row.  `text()` ends with
+  `cairo_show_text`, which leaves a current point in the path; the lock icons
+  are drawn with `cairo_arc`, which joins that point to the arc, and the
+  following `cairo_stroke` drew the join as a line across the tabs.  Widgets
+  now start from a clean path.
+- Draw the Ghost button outline again (the gradient fill cleared the path
+  before the outline stroke).
+
 ## 0.9.0-alpha.11 — 2026-11-19
 
 - User preset bank: save, rename, duplicate, delete, export and drag-drop

@@ -2536,6 +2536,12 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
                        const PanelState& state, int drum) const {
   (void)state;
   const Skin skin = skinFor(drum);
+  // Every widget draws from a clean path.  text() ends with cairo_show_text,
+  // which leaves a current point behind without clearing the path; the next
+  // cairo_arc() then joins that point to the arc with a line, and cairo_stroke()
+  // draws it.  That is what put a stray line across the page tabs once the lock
+  // icons (arcs) were added after the tab labels (text).
+  cairo_new_path(cr);
   switch (w.kind) {
     case Kind::Power: {
       const bool on = shared.get(P_POWER) > 0.5;
@@ -2587,6 +2593,7 @@ void Panel::drawWidget(cairo_t* cr, const Widget& w, const Shared& shared,
       const double cy = w.y + w.h * 0.5;
       setRgb(cr, locked ? skin.btnOn : skin.legendDim, locked ? 1.0 : 0.55);
       cairo_set_line_width(cr, 1.5);
+      cairo_new_path(cr);
       cairo_arc(cr, cx, cy - 2.0, 3.5, 3.14159265, 2.0 * 3.14159265);
       cairo_stroke(cr);
       roundRect(cr, cx - 4.5, cy - 1.0, 9.0, 7.0, 1.5);
@@ -2679,6 +2686,7 @@ void Panel::drawGhost(cairo_t* cr, const Widget& w, bool on, int drum) const {
   cairo_pattern_destroy(pat);
   cairo_set_line_width(cr, 1.0);
   cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.45);
+  ghostPath(cr, cx, top, gw, gh);  // cairo_fill() cleared the path
   cairo_stroke(cr);
 
   // Eyes.
