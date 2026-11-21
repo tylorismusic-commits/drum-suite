@@ -671,7 +671,7 @@ void Panel::layout(const Shared& shared, const PanelState& state) {
          sc(kSampleTriggerLabels), false, 4, 1.7);
     knob(P_SAMPLE_OFFSET, 820, 555, 26, "OFFSET");
     knob(P_SAMPLE_NOTE, 420, 575, 26, "MIDI NOTE");
-    knob(P_SAMPLE_RETRIGGER, 920, 440, 26, "RETRIG");
+    knob(P_SAMPLE_RETRIGGER, 892, 440, 26, "RETRIG");
     {
       Widget load{};
       load.kind = Kind::LoadFolder;
