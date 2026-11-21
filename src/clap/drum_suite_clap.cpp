@@ -77,7 +77,12 @@ std::string bundleResourceDir() {
     if (slash != std::string::npos) {
       path = path.substr(0, slash);
     }
+#ifdef SUITE_MACOS_COCOA
+    // Resources live in Contents/Resources, next to Contents/MacOS.
+    return path + "/../Resources/DrumSuite.resources";
+#else
     return path + "/DrumSuite.resources";
+#endif
   }
   return "DrumSuite.resources";
 }

@@ -91,9 +91,9 @@ add_custom_target(drum_suite_bundle ALL
           "${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist"
           "${DRUM_CLAP_BUNDLE}/Contents/Info.plist"
   COMMAND ${CMAKE_COMMAND} -E make_directory
-          "${DRUM_CLAP_BUNDLE}/Contents/MacOS/DrumSuite.resources"
+          "${DRUM_CLAP_BUNDLE}/Contents/Resources/DrumSuite.resources"
   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DRUM_RESOURCE_FILES}
-          "${DRUM_CLAP_BUNDLE}/Contents/MacOS/DrumSuite.resources/"
+          "${DRUM_CLAP_BUNDLE}/Contents/Resources/DrumSuite.resources/"
   DEPENDS drum_suite ${DRUM_RESOURCE_FILES})
 if(DYLIBBUNDLER)
   add_custom_command(TARGET drum_suite_bundle POST_BUILD
