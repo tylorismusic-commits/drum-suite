@@ -148,7 +148,7 @@ pkg_check_modules(LILV QUIET IMPORTED_TARGET lilv-0)
 
 set(LV2_BUNDLE_DIR "${CMAKE_BINARY_DIR}/lv2/drum-suite.lv2")
 
-add_library(drum_suite_lv2 MODULE src/drum_suite_lv2.cpp)
+add_library(drum_suite_lv2 MODULE src/drum_suite_lv2.cpp src/dsp/flac.cpp)
 target_include_directories(drum_suite_lv2 PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(drum_suite_lv2 PRIVATE PkgConfig::LV2)
 target_compile_features(drum_suite_lv2 PRIVATE cxx_std_20)
