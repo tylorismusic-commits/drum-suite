@@ -166,8 +166,6 @@ if(CODESIGN)
 endif()
 
 install(DIRECTORY "${DRUM_CLAP_BUNDLE}" DESTINATION "${CLAP_DIR}")
-install(DIRECTORY "${DRUM_VST3_BUNDLE}" DESTINATION "${CMAKE_INSTALL_LIBDIR}/vst3")
-install(DIRECTORY "${DRUM_AUV2_BUNDLE}" DESTINATION "${CMAKE_INSTALL_LIBDIR}/au")
 elseif(SUITE_X11)
 add_library(drum_suite MODULE
   src/clap/drum_suite_clap.cpp

@@ -20,6 +20,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The VST3/AUv2 wrappers live in third_party/clap-wrapper.
+          submodules: recursive
 
       - name: Toolchain
         run: |
