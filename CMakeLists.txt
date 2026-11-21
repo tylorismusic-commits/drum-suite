@@ -33,13 +33,22 @@ find_package(Threads REQUIRED)
 pkg_check_modules(LV2 REQUIRED IMPORTED_TARGET lv2)
 pkg_check_modules(CAIRO REQUIRED IMPORTED_TARGET cairo)
 pkg_check_modules(FREETYPE REQUIRED IMPORTED_TARGET freetype2)
-pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+# The editor hosts are X11 today.  macOS builds the portable subset (DSP,
+# panel, tests, tools) until a Cocoa view lands, so X11 stays optional.
+option(SUITE_NO_X11 "Skip X11 editor targets (portable subset)" OFF)
+if(APPLE OR SUITE_NO_X11)
+  set(SUITE_X11 OFF)
+else()
+  pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+  set(SUITE_X11 ON)
+endif()
 
 set(DRUM_UI_SOURCES src/ui/panel.cpp src/dsp/flac.cpp)
 
 # ---------------------------------------------------------------------------
 # CLAP plugin: three pages, one X11/Cairo editor.
 # ---------------------------------------------------------------------------
+if(SUITE_X11)
 add_library(drum_suite MODULE
   src/clap/drum_suite_clap.cpp
   ${DRUM_UI_SOURCES})
@@ -72,6 +81,7 @@ add_custom_target(drum_suite_bundle ALL
 install(TARGETS drum_suite LIBRARY DESTINATION "${CLAP_DIR}")
 install(FILES ${DRUM_RESOURCE_FILES}
         DESTINATION "${CLAP_DIR}/DrumSuite.resources")
+endif()  # SUITE_X11
 
 # ---------------------------------------------------------------------------
 # Tests and tools
@@ -147,6 +157,7 @@ set_target_properties(drum_suite_lv2 PROPERTIES
   OUTPUT_NAME "drum_suite"
   LIBRARY_OUTPUT_DIRECTORY "${LV2_BUNDLE_DIR}")
 
+if(SUITE_X11)
 add_library(drum_suite_lv2_ui MODULE src/ui/lv2_ui.cpp ${DRUM_UI_SOURCES})
 target_include_directories(drum_suite_lv2_ui PRIVATE
   "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/third_party/clap/include")
@@ -169,8 +180,10 @@ add_custom_target(drum_suite_lv2_bundle ALL
           "${CMAKE_SOURCE_DIR}/assets/fonts/OFL.txt"
           "${LV2_BUNDLE_DIR}/"
   DEPENDS drum_suite_lv2 drum_suite_lv2_ui)
+endif()  # SUITE_X11
 
 # Release tarball: both bundles, ready to drop into ~/.lv2 and ~/.clap.
+if(SUITE_X11)
 add_custom_target(dist
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/dist"
   COMMAND ${CMAKE_COMMAND} -E tar czf
@@ -179,9 +192,13 @@ add_custom_target(dist
   WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
   DEPENDS drum_suite_lv2_bundle drum_suite_bundle
   COMMENT "Packing drum-suite-${PROJECT_VERSION}")
+endif()  # SUITE_X11
 
-install(TARGETS drum_suite_lv2 drum_suite_lv2_ui
-        LIBRARY DESTINATION "${LV2_DIR}/drum-suite.lv2")
+install(TARGETS drum_suite_lv2 LIBRARY DESTINATION "${LV2_DIR}/drum-suite.lv2")
+if(SUITE_X11)
+  install(TARGETS drum_suite_lv2_ui
+          LIBRARY DESTINATION "${LV2_DIR}/drum-suite.lv2")
+endif()
 install(FILES
   lv2/manifest.ttl
   lv2/drum_suite.ttl
