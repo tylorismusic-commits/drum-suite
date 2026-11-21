@@ -102,7 +102,72 @@ if(DYLIBBUNDLER)
             -d "${DRUM_CLAP_BUNDLE}/Contents/Frameworks"
             -p "@loader_path/../Frameworks")
 endif()
+# ---------------------------------------------------------------------------
+# VST3 and AUv2 projections of the same CLAP (clap-wrapper)
+#
+# Both wrappers load the .clap we just built from their own Contents/PlugIns,
+# so the bundles stay self-contained: no copy of the plug-in has to be
+# installed for the wrapper to work.
+# ---------------------------------------------------------------------------
+set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES ON)
+add_subdirectory(third_party/clap-wrapper EXCLUDE_FROM_ALL)
+
+set(DRUM_VST3_BUNDLE "${CMAKE_BINARY_DIR}/vst3/DrumSuite.vst3")
+set(DRUM_AUV2_BUNDLE "${CMAKE_BINARY_DIR}/au/DrumSuite.component")
+
+add_library(drum_suite_vst3 MODULE)
+add_dependencies(drum_suite_vst3 drum_suite_bundle)
+target_add_vst3_wrapper(TARGET drum_suite_vst3
+  OUTPUT_NAME "DrumSuite"
+  BUNDLE_IDENTIFIER "com.tylorismusic.drumsuite"
+  BUNDLE_VERSION "${PROJECT_VERSION}"
+  ASSET_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/vst3"
+  MACOS_EMBEDDED_CLAP_LOCATION "${DRUM_CLAP_BUNDLE}")
+
+add_library(drum_suite_auv2 MODULE)
+add_dependencies(drum_suite_auv2 drum_suite_bundle)
+target_add_auv2_wrapper(TARGET drum_suite_auv2
+  OUTPUT_NAME "DrumSuite"
+  BUNDLE_IDENTIFIER "com.tylorismusic.drumsuite"
+  BUNDLE_VERSION "${PROJECT_VERSION}"
+  MANUFACTURER_NAME "tylorismusic"
+  MANUFACTURER_CODE "Tylr"
+  SUBTYPE_CODE "DsSu"
+  INSTRUMENT_TYPE "aufx"
+  MACOS_EMBEDDED_CLAP_LOCATION "${DRUM_CLAP_BUNDLE}")
+set_target_properties(drum_suite_auv2 PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/au")
+
+# The wrapper generates Contents/Info.plist with its AudioComponents entry at
+# build time and copies it PRE_BUILD.  With the Makefile generator CMake then
+# writes its own default bundle plist, which has no AudioComponents, so the
+# component never registers (auval: "didn't find the component").  Copy the
+# generated plist again POST_BUILD; the signing targets run afterwards.
+add_custom_command(TARGET drum_suite_auv2 POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy
+          "${CMAKE_BINARY_DIR}/drum_suite_auv2-build-helper-output/auv2_Info.plist"
+          "$<TARGET_BUNDLE_DIR:drum_suite_auv2>/Contents/Info.plist"
+  COMMENT "Installing the generated AUv2 Info.plist")
+
+# Embedding the CLAP happens PRE_BUILD, which invalidates any signature the
+# wrapper had, so re-sign the finished bundles.
+find_program(CODESIGN codesign)
+if(CODESIGN)
+  add_custom_target(drum_suite_vst3_sign ALL
+    COMMAND "${CODESIGN}" --force --deep --sign - "${DRUM_VST3_BUNDLE}"
+    COMMENT "Ad-hoc signing ${DRUM_VST3_BUNDLE}"
+    DEPENDS drum_suite_vst3
+    VERBATIM)
+  add_custom_target(drum_suite_auv2_sign ALL
+    COMMAND "${CODESIGN}" --force --deep --sign - "${DRUM_AUV2_BUNDLE}"
+    COMMENT "Ad-hoc signing ${DRUM_AUV2_BUNDLE}"
+    DEPENDS drum_suite_auv2
+    VERBATIM)
+endif()
+
 install(DIRECTORY "${DRUM_CLAP_BUNDLE}" DESTINATION "${CLAP_DIR}")
+install(DIRECTORY "${DRUM_VST3_BUNDLE}" DESTINATION "${CMAKE_INSTALL_LIBDIR}/vst3")
+install(DIRECTORY "${DRUM_AUV2_BUNDLE}" DESTINATION "${CMAKE_INSTALL_LIBDIR}/au")
 elseif(SUITE_X11)
 add_library(drum_suite MODULE
   src/clap/drum_suite_clap.cpp
