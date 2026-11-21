@@ -67,6 +67,9 @@ jobs:
             test -f "$bundle/Contents/PlugIns/DrumSuite.clap/Contents/MacOS/DrumSuite"
             codesign --verify --deep --verbose=2 "$bundle"
           done
+          # Without this entry macOS never registers the component.
+          plutil -p build-macos/au/DrumSuite.component/Contents/Info.plist \
+            | grep -q AudioComponents
 
       - name: Validate AUv2 with auval
         run: |
