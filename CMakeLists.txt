@@ -45,10 +45,65 @@ endif()
 
 set(DRUM_UI_SOURCES src/ui/panel.cpp src/dsp/flac.cpp)
 
+set(DRUM_RESOURCE_FILES
+  "${CMAKE_SOURCE_DIR}/assets/fonts/Jost-ExtraBold.ttf"
+  "${CMAKE_SOURCE_DIR}/assets/fonts/OFL.txt")
+
 # ---------------------------------------------------------------------------
-# CLAP plugin: three pages, one X11/Cairo editor.
+# CLAP plugin: three pages, one cairo editor (X11 on Linux, Cocoa on macOS).
 # ---------------------------------------------------------------------------
-if(SUITE_X11)
+if(APPLE)
+enable_language(OBJCXX)
+add_library(drum_suite MODULE
+  src/clap/drum_suite_clap.cpp
+  ${DRUM_UI_SOURCES}
+  src/ui/cocoa_view.mm)
+target_include_directories(drum_suite PRIVATE
+  "${CMAKE_SOURCE_DIR}/src"
+  "${CMAKE_SOURCE_DIR}/third_party/clap/include"
+  ${CAIRO_INCLUDE_DIRS})
+target_compile_definitions(drum_suite PRIVATE SUITE_MACOS_COCOA=1)
+target_compile_options(drum_suite PRIVATE -fobjc-arc)
+target_link_libraries(drum_suite PRIVATE
+  PkgConfig::CAIRO PkgConfig::FREETYPE
+  "-framework Cocoa" "-framework CoreGraphics" "-framework QuartzCore"
+  Threads::Threads ${CMAKE_DL_LIBS})
+target_compile_features(drum_suite PRIVATE cxx_std_20)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(drum_suite PRIVATE -Wall -Wextra -fvisibility=hidden)
+endif()
+set_target_properties(drum_suite PROPERTIES
+  PREFIX ""
+  OUTPUT_NAME "DrumSuite"
+  SUFFIX ".dylib"
+  LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/macos")
+
+set(DRUM_CLAP_BUNDLE "${CMAKE_BINARY_DIR}/clap/DrumSuite.clap")
+find_program(DYLIBBUNDLER dylibbundler)
+add_custom_target(drum_suite_bundle ALL
+  COMMAND ${CMAKE_COMMAND} -E remove_directory "${DRUM_CLAP_BUNDLE}"
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          "${DRUM_CLAP_BUNDLE}/Contents/MacOS"
+  COMMAND ${CMAKE_COMMAND} -E copy
+          "$<TARGET_FILE:drum_suite>"
+          "${DRUM_CLAP_BUNDLE}/Contents/MacOS/DrumSuite"
+  COMMAND ${CMAKE_COMMAND} -E copy
+          "${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist"
+          "${DRUM_CLAP_BUNDLE}/Contents/Info.plist"
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          "${DRUM_CLAP_BUNDLE}/Contents/MacOS/DrumSuite.resources"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DRUM_RESOURCE_FILES}
+          "${DRUM_CLAP_BUNDLE}/Contents/MacOS/DrumSuite.resources/"
+  DEPENDS drum_suite ${DRUM_RESOURCE_FILES})
+if(DYLIBBUNDLER)
+  add_custom_command(TARGET drum_suite_bundle POST_BUILD
+    COMMAND "${DYLIBBUNDLER}" -od -b
+            -x "${DRUM_CLAP_BUNDLE}/Contents/MacOS/DrumSuite"
+            -d "${DRUM_CLAP_BUNDLE}/Contents/Frameworks"
+            -p "@loader_path/../Frameworks")
+endif()
+install(DIRECTORY "${DRUM_CLAP_BUNDLE}" DESTINATION "${CLAP_DIR}")
+elseif(SUITE_X11)
 add_library(drum_suite MODULE
   src/clap/drum_suite_clap.cpp
   ${DRUM_UI_SOURCES})
@@ -67,10 +122,6 @@ set_target_properties(drum_suite PROPERTIES
   OUTPUT_NAME "DrumSuite"
   SUFFIX ".clap"
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/clap")
-
-set(DRUM_RESOURCE_FILES
-  "${CMAKE_SOURCE_DIR}/assets/fonts/Jost-ExtraBold.ttf"
-  "${CMAKE_SOURCE_DIR}/assets/fonts/OFL.txt")
 
 add_custom_target(drum_suite_bundle ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/clap/DrumSuite.resources"
