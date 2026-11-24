@@ -41,6 +41,7 @@ public:
     delayWrite_ = 0;
     fastRelease_ = std::exp(-1.0f / (0.020f * sr_));
     detRelease_ = std::exp(-1.0f / (0.080f * sr_));
+    bodySlowRelease_ = std::exp(-1.0f / (0.080f * sr_));
     input_.setTime(15.0f, sr_);
     output_.setTime(15.0f, sr_);
     input_.reset(1.0f);
@@ -118,6 +119,8 @@ public:
     ghostTriggerPrev_ = false;
     envDet_ = 0.0f;
     mainWasHot_ = false;
+    samplesSinceBody_ = 0;
+    bodySlow_ = 0.0f;
     for (int i = 0; i < 3; ++i) {
       bandFast_[i] = 0.0f;
     }
@@ -196,9 +199,26 @@ public:
       // gate.  Anything below the main threshold is bleed, so it must not be
       // able to open the high band: otherwise a quiet snare body that never
       // opens the visible gate still lets its crack through as a short blip.
-      if (det > threshold_ && !mainWasHot_) {
+      // Re-arm on every new hit, not only the first crossing after the
+      // detector falls below the hysteresis point.  Dense playing never gets
+      // that far down, so the high band used to stay closed after the first
+      // hit and the top of every later attack was dulled.  A new hit is a
+      // rise in the body bands (high-band wash does not count) at least
+      // 20 ms after the last trigger, so the same hit's wash cannot re-open
+      // the band.
+      if (++samplesSinceBody_ > 1000000) samplesSinceBody_ = 1000000;
+      const float bodyDet = weights_[0] * bandFast_[0] +
+                            weights_[1] * bandFast_[1];
+      bodySlow_ = std::max(bodyDet, bodySlow_ * bodySlowRelease_);
+      const bool bodyRise =
+          mainWasHot_ && det > threshold_ &&
+          samplesSinceBody_ > static_cast<int>(0.020f * sr_) &&
+          bodyDet > bodySlow_ * 1.5f;
+      if (det > threshold_ && (!mainWasHot_ || bodyRise)) {
         mainWasHot_ = true;
         bodyHold_ = hbHoldSamples_;
+        samplesSinceBody_ = 0;
+        bodySlow_ = bodyDet;
       } else if (det < closeThreshold_) {
         mainWasHot_ = false;
       }
@@ -342,6 +362,9 @@ private:
   float gateEnv_ = 0.0f;
 
   bool mainWasHot_ = false;
+  int samplesSinceBody_ = 0;
+  float bodySlow_ = 0.0f;
+  float bodySlowRelease_ = 0.999f;
   int bodyHold_ = 0;
   float bodyEnv_ = 0.0f;
 
